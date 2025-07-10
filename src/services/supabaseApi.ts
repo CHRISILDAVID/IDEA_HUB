@@ -461,6 +461,77 @@ export const supabaseApi = {
     }
   },
 
+  // Get platform statistics
+  async getPlatformStats(): Promise<ApiResponse<{
+    totalIdeas: number;
+    activeUsers: number;
+    ideasThisWeek: number;
+    totalCollaborations: number;
+  }>> {
+    try {
+      // Get total ideas count
+      const { count: totalIdeas, error: ideasError } = await supabase
+        .from('ideas')
+        .select('*', { count: 'exact', head: true })
+        .eq('visibility', 'public')
+        .eq('status', 'published');
+
+      if (ideasError) throw ideasError;
+
+      // Get active users count (users who have created ideas)
+      const { count: activeUsers, error: usersError } = await supabase
+        .from('users')
+        .select('*', { count: 'exact', head: true });
+
+      if (usersError) throw usersError;
+
+      // Get ideas created this week
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      
+      const { count: ideasThisWeek, error: weekError } = await supabase
+        .from('ideas')
+        .select('*', { count: 'exact', head: true })
+        .eq('visibility', 'public')
+        .eq('status', 'published')
+        .gte('created_at', oneWeekAgo.toISOString());
+
+      if (weekError) throw weekError;
+
+      // Get total collaborations (forks + stars)
+      const { count: totalStars, error: starsError } = await supabase
+        .from('stars')
+        .select('*', { count: 'exact', head: true });
+
+      if (starsError) throw starsError;
+
+      const { data: forksData, error: forksError } = await supabase
+        .from('ideas')
+        .select('forks')
+        .eq('visibility', 'public')
+        .eq('status', 'published');
+
+      if (forksError) throw forksError;
+
+      const totalForks = forksData?.reduce((sum, idea) => sum + (idea.forks || 0), 0) || 0;
+      const totalCollaborations = (totalStars || 0) + totalForks;
+
+      return {
+        data: {
+          totalIdeas: totalIdeas || 0,
+          activeUsers: activeUsers || 0,
+          ideasThisWeek: ideasThisWeek || 0,
+          totalCollaborations,
+        },
+        message: 'Platform stats retrieved successfully',
+        success: true,
+      };
+    } catch (error) {
+      handleSupabaseError(error);
+      throw error;
+    }
+  },
+
   // Get activity feed (mock for now)
   async getActivityFeed(): Promise<ApiResponse<Activity[]>> {
     // This would need a more complex implementation with activity tracking

@@ -22,10 +22,24 @@ export const HomePage: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
   const [trendingIdeas, setTrendingIdeas] = useState<Idea[]>([]);
   const [recentActivity, setRecentActivity] = useState<ActivityType[]>([]);
+  const [platformStats, setPlatformStats] = useState({
+    totalIdeas: 0,
+    activeUsers: 0,
+    ideasThisWeek: 0,
+    totalCollaborations: 0,
+  });
   const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [statsError, setStatsError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
+    fetchPlatformStats();
+    
+    // Set up interval to refresh stats every 30 seconds
+    const statsInterval = setInterval(fetchPlatformStats, 30000);
+    
+    return () => clearInterval(statsInterval);
   }, []);
 
   const fetchData = async () => {
@@ -45,6 +59,19 @@ export const HomePage: React.FC = () => {
     }
   };
 
+  const fetchPlatformStats = async () => {
+    try {
+      setStatsError(null);
+      const response = await api.getPlatformStats();
+      setPlatformStats(response.data);
+    } catch (error) {
+      console.error('Error fetching platform stats:', error);
+      setStatsError('Failed to load platform statistics');
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
   const handleIdeaUpdate = (updatedIdea: Idea) => {
     setTrendingIdeas(prev =>
       prev.map(idea => idea.id === updatedIdea.id ? updatedIdea : idea)
@@ -60,6 +87,15 @@ export const HomePage: React.FC = () => {
     if (diffHours < 1) return 'Just now';
     if (diffHours < 24) return `${diffHours}h ago`;
     return `${Math.floor(diffHours / 24)}d ago`;
+  };
+
+  const formatNumber = (num: number): string => {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(1) + 'M';
+    } else if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'K';
+    }
+    return num.toString();
   };
 
   return (
@@ -117,22 +153,49 @@ export const HomePage: React.FC = () => {
 
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-8 border-t border-blue-500">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-100">50K+</div>
-                <div className="text-sm text-blue-200">Ideas Shared</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-100">25K+</div>
-                <div className="text-sm text-blue-200">Active Users</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-100">100+</div>
-                <div className="text-sm text-blue-200">Categories</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-100">24/7</div>
-                <div className="text-sm text-blue-200">Community</div>
-              </div>
+              {statsLoading ? (
+                <>
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="text-center animate-pulse">
+                      <div className="h-8 bg-blue-400/20 rounded w-16 mx-auto mb-2"></div>
+                      <div className="h-4 bg-blue-400/20 rounded w-20 mx-auto"></div>
+                    </div>
+                  ))}
+                </>
+              ) : statsError ? (
+                <div className="col-span-2 md:col-span-4 text-center">
+                  <div className="text-blue-200 text-sm">
+                    {statsError}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-100">
+                      {formatNumber(platformStats.totalIdeas)}+
+                    </div>
+                    <div className="text-sm text-blue-200">Ideas Shared</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-100">
+                      {formatNumber(platformStats.activeUsers)}+
+                    </div>
+                    <div className="text-sm text-blue-200">Active Users</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-100">
+                      {formatNumber(platformStats.ideasThisWeek)}+
+                    </div>
+                    <div className="text-sm text-blue-200">Ideas This Week</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-100">
+                      {formatNumber(platformStats.totalCollaborations)}+
+                    </div>
+                    <div className="text-sm text-blue-200">Collaborations</div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -341,24 +404,53 @@ export const HomePage: React.FC = () => {
               <h3 className="font-semibold text-gray-900 dark:text-white mb-4">
                 Platform Stats
               </h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Total Ideas</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">50,247</span>
+              {statsLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="flex items-center justify-between animate-pulse">
+                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24"></div>
+                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Active Users</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">25,193</span>
+              ) : statsError ? (
+                <div className="text-center py-4">
+                  <p className="text-red-600 dark:text-red-400 text-sm mb-2">{statsError}</p>
+                  <button
+                    onClick={fetchPlatformStats}
+                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm font-medium"
+                  >
+                    Try Again
+                  </button>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Ideas This Week</span>
-                  <span className="font-semibold text-green-600 dark:text-green-400">+1,247</span>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Total Ideas</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">
+                      {platformStats.totalIdeas.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Active Users</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">
+                      {platformStats.activeUsers.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Ideas This Week</span>
+                    <span className="font-semibold text-green-600 dark:text-green-400">
+                      +{platformStats.ideasThisWeek.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Collaborations</span>
+                    <span className="font-semibold text-blue-600 dark:text-blue-400">
+                      {platformStats.totalCollaborations.toLocaleString()}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Collaborations</span>
-                  <span className="font-semibold text-blue-600 dark:text-blue-400">8,952</span>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </div>

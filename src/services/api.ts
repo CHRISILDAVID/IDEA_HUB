@@ -119,4 +119,14 @@ export const api = {
   async getActivityFeed(): Promise<ApiResponse<Activity[]>> {
     return supabaseApi.getActivityFeed();
   },
+
+  // Get platform statistics
+  async getPlatformStats(): Promise<ApiResponse<{
+    totalIdeas: number;
+    activeUsers: number;
+    ideasThisWeek: number;
+    totalCollaborations: number;
+  }>> {
+    return supabaseApi.getPlatformStats();
+  },
 };
