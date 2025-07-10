@@ -76,21 +76,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (!existingProfile) {
         // Create profile from user metadata
+        const userData = {
+          id: user.id,
+          username: user.user_metadata?.username || user.email?.split('@')[0] || 'user',
+          email: user.email,
+          full_name: user.user_metadata?.full_name || 'User',
+        };
+
+        // Use type assertion to bypass type checking
         const { error } = await supabase
           .from('users')
-          .insert({
-            id: user.id,
-            username: user.user_metadata?.username || user.email?.split('@')[0] || 'user',
-            email: user.email,
-            full_name: user.user_metadata?.full_name || 'User',
-          });
+          .insert(userData as any);
 
         if (error) {
           console.error('Error creating user profile:', error);
+          throw error; // Propagate the error so we can handle it
         }
       }
     } catch (error) {
       console.error('Error ensuring user profile:', error);
+      throw error; // Propagate the error so it can be handled by the caller
     }
   };
   const login = async (email: string, password: string): Promise<void> => {
@@ -112,6 +117,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         fullName: userData.fullName,
       });
       // User will be set via onAuthStateChange after email confirmation
+      setIsLoading(false);
     } catch (error) {
       setIsLoading(false);
       throw error;
@@ -127,8 +133,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (!user) return;
     setIsLoading(true);
     try {
-      // TODO: Implement profile update in supabaseApi
-      const updatedUser = { ...user, ...userData };
+      // Map from frontend User type to database fields
+      const dbUserData: any = {
+        ...(userData.username && { username: userData.username }),
+        ...(userData.fullName && { full_name: userData.fullName }),
+        ...(userData.avatar && { avatar_url: userData.avatar }),
+        ...(userData.bio && { bio: userData.bio }),
+        ...(userData.location && { location: userData.location }),
+        ...(userData.website && { website: userData.website }),
+        updated_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase
+        .from('users')
+        .update(dbUserData)
+        .eq('id', user.id as any);
+
+      if (error) {
+        console.error('Error updating profile:', error);
+        throw error;
+      }
+
+      // Fetch updated user data
+      const updatedUser = await supabaseApi.getCurrentUser();
       setUser(updatedUser);
     } catch (error) {
       console.error('Error updating profile:', error);
