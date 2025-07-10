@@ -129,4 +129,34 @@ export const api = {
   }>> {
     return supabaseApi.getPlatformStats();
   },
+
+  // Get category statistics
+  async getCategoryStats(): Promise<ApiResponse<Array<{
+    name: string;
+    count: number;
+    trending: boolean;
+  }>>> {
+    return supabaseApi.getCategoryStats();
+  },
+
+  // Get trending statistics
+  async getTrendingStats(): Promise<ApiResponse<{
+    totalViews: number;
+    starsThisWeek: number;
+    forksThisWeek: number;
+    newIdeas: number;
+  }>> {
+    return supabaseApi.getTrendingStats();
+  },
+
+  // Get user dashboard statistics
+  async getUserDashboardStats(userId: string): Promise<ApiResponse<{
+    totalIdeas: number;
+    totalStars: number;
+    totalForks: number;
+    totalViews: number;
+    recentActivity: any[];
+  }>> {
+    return supabaseApi.getUserDashboardStats(userId);
+  },
 };

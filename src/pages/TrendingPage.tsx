@@ -7,12 +7,20 @@ import { Idea } from '../types';
 
 export const TrendingPage: React.FC = () => {
   const [ideas, setIdeas] = useState<Idea[]>([]);
+  const [trendingStats, setTrendingStats] = useState({
+    totalViews: 0,
+    starsThisWeek: 0,
+    forksThisWeek: 0,
+    newIdeas: 0,
+  });
   const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
   const [timeframe, setTimeframe] = useState<'today' | 'week' | 'month' | 'year'>('week');
   const [category, setCategory] = useState('all');
 
   useEffect(() => {
     fetchTrendingIdeas();
+    fetchTrendingStats();
   }, [timeframe, category]);
 
   const fetchTrendingIdeas = async () => {
@@ -24,6 +32,18 @@ export const TrendingPage: React.FC = () => {
       console.error('Error fetching trending ideas:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTrendingStats = async () => {
+    try {
+      setStatsLoading(true);
+      const response = await api.getTrendingStats();
+      setTrendingStats(response.data);
+    } catch (error) {
+      console.error('Error fetching trending stats:', error);
+    } finally {
+      setStatsLoading(false);
     }
   };
 
@@ -41,6 +61,15 @@ export const TrendingPage: React.FC = () => {
       case 'year': return 'This Year';
       default: return 'This Week';
     }
+  };
+
+  const formatNumber = (num: number): string => {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(1) + 'M';
+    } else if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'K';
+    }
+    return num.toString();
   };
 
   return (
@@ -64,53 +93,79 @@ export const TrendingPage: React.FC = () => {
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-              <div className="flex items-center space-x-3">
-                <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded-lg">
-                  <Eye className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            {statsLoading ? (
+              <>
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700 animate-pulse">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+                      <div className="flex-1">
+                        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20 mb-2"></div>
+                        <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </>
+            ) : (
+              <>
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center space-x-3">
+                    <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded-lg">
+                      <Eye className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Total Views</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {formatNumber(trendingStats.totalViews)}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Total Views</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">2.4M</p>
-                </div>
-              </div>
-            </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-              <div className="flex items-center space-x-3">
-                <div className="bg-yellow-100 dark:bg-yellow-900/20 p-2 rounded-lg">
-                  <Star className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center space-x-3">
+                    <div className="bg-yellow-100 dark:bg-yellow-900/20 p-2 rounded-lg">
+                      <Star className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Stars {getTimeframeLabel()}</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {formatNumber(trendingStats.starsThisWeek)}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Stars {getTimeframeLabel()}</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">15.2K</p>
-                </div>
-              </div>
-            </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-              <div className="flex items-center space-x-3">
-                <div className="bg-purple-100 dark:bg-purple-900/20 p-2 rounded-lg">
-                  <GitFork className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center space-x-3">
+                    <div className="bg-purple-100 dark:bg-purple-900/20 p-2 rounded-lg">
+                      <GitFork className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Forks {getTimeframeLabel()}</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {formatNumber(trendingStats.forksThisWeek)}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Forks {getTimeframeLabel()}</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">3.8K</p>
-                </div>
-              </div>
-            </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-              <div className="flex items-center space-x-3">
-                <div className="bg-green-100 dark:bg-green-900/20 p-2 rounded-lg">
-                  <Clock className="w-5 h-5 text-green-600 dark:text-green-400" />
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center space-x-3">
+                    <div className="bg-green-100 dark:bg-green-900/20 p-2 rounded-lg">
+                      <Clock className="w-5 h-5 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">New Ideas</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {formatNumber(trendingStats.newIdeas)}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">New Ideas</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">247</p>
-                </div>
-              </div>
-            </div>
+              </>
+            )}
           </div>
         </div>
 

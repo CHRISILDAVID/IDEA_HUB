@@ -22,12 +22,21 @@ export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
   const [userIdeas, setUserIdeas] = useState<Idea[]>([]);
   const [recentActivity, setRecentActivity] = useState<ActivityType[]>([]);
+  const [dashboardStats, setDashboardStats] = useState({
+    totalIdeas: 0,
+    totalStars: 0,
+    totalForks: 0,
+    totalViews: 0,
+    recentActivity: [],
+  });
   const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'ideas' | 'activity'>('overview');
 
   useEffect(() => {
     if (user) {
       fetchDashboardData();
+      fetchDashboardStats();
     }
   }, [user]);
 
@@ -47,6 +56,20 @@ export const DashboardPage: React.FC = () => {
       console.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchDashboardStats = async () => {
+    if (!user) return;
+    
+    try {
+      setStatsLoading(true);
+      const response = await api.getUserDashboardStats(user.id);
+      setDashboardStats(response.data);
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+    } finally {
+      setStatsLoading(false);
     }
   };
 
@@ -86,10 +109,6 @@ export const DashboardPage: React.FC = () => {
       </Layout>
     );
   }
-
-  const totalStars = userIdeas.reduce((sum, idea) => sum + idea.stars, 0);
-  const totalForks = userIdeas.reduce((sum, idea) => sum + idea.forks, 0);
-  const totalViews = userIdeas.length * 150; // Mock calculation
 
   return (
     <Layout>
@@ -131,53 +150,71 @@ export const DashboardPage: React.FC = () => {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center space-x-3">
-              <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded-lg">
-                <BarChart3 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+          {statsLoading ? (
+            <>
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700 animate-pulse">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+                    <div className="flex-1">
+                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20 mb-2"></div>
+                      <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </>
+          ) : (
+            <>
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded-lg">
+                    <BarChart3 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Total Ideas</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{dashboardStats.totalIdeas}</p>
+                  </div>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Total Ideas</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{userIdeas.length}</p>
-              </div>
-            </div>
-          </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center space-x-3">
-              <div className="bg-yellow-100 dark:bg-yellow-900/20 p-2 rounded-lg">
-                <Star className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-yellow-100 dark:bg-yellow-900/20 p-2 rounded-lg">
+                    <Star className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Total Stars</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{dashboardStats.totalStars}</p>
+                  </div>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Total Stars</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalStars}</p>
-              </div>
-            </div>
-          </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center space-x-3">
-              <div className="bg-purple-100 dark:bg-purple-900/20 p-2 rounded-lg">
-                <GitFork className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-purple-100 dark:bg-purple-900/20 p-2 rounded-lg">
+                    <GitFork className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Total Forks</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{dashboardStats.totalForks}</p>
+                  </div>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Total Forks</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalForks}</p>
-              </div>
-            </div>
-          </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center space-x-3">
-              <div className="bg-green-100 dark:bg-green-900/20 p-2 rounded-lg">
-                <Eye className="w-5 h-5 text-green-600 dark:text-green-400" />
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-green-100 dark:bg-green-900/20 p-2 rounded-lg">
+                    <Eye className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Total Views</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{dashboardStats.totalViews.toLocaleString()}</p>
+                  </div>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Total Views</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalViews.toLocaleString()}</p>
-              </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
 
         {/* Tabs */}
