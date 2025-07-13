@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Layout } from '../components/Layout/Layout';
 import { IdeaCard } from '../components/Ideas/IdeaCard';
 import { 
-  TrendingUp, 
+  TrendingUp,
   Star, 
   Users, 
   GitFork, 
@@ -45,12 +45,12 @@ export const HomePage: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [trendingResponse, activityResponse] = await Promise.all([
-        api.getTrendingIdeas(),
+      const [popularResponse, activityResponse] = await Promise.all([
+        api.getPopularIdeas(),
         api.getActivityFeed(),
       ]);
       
-      setTrendingIdeas(trendingResponse.data.slice(0, 3));
+      setTrendingIdeas(popularResponse.data.slice(0, 3));
       setRecentActivity(activityResponse.data.slice(0, 5));
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -203,15 +203,15 @@ export const HomePage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
-            {/* Trending Ideas */}
+            {/* Popular Ideas */}
             <section>
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
                   <TrendingUp className="w-6 h-6 mr-2 text-orange-500" />
-                  Trending Ideas
+                  Popular Ideas
                 </h2>
                 <Link
-                  to="/trending"
+                  to="/popular"
                   className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium flex items-center"
                 >
                   View all
@@ -262,20 +262,6 @@ export const HomePage: React.FC = () => {
                   <div>
                     <h4 className="font-semibold text-gray-900 dark:text-white">Global Community</h4>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Connect with innovators and creators from around the world.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <div className="bg-purple-100 dark:bg-purple-900/20 p-2 rounded-lg">
-                    <GitFork className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-gray-900 dark:text-white">Version Control</h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Track changes and collaborate on ideas with built-in versioning.
-                    </p>
-                  </div>
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="bg-orange-100 dark:bg-orange-900/20 p-2 rounded-lg">

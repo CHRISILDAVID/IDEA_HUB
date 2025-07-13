@@ -4,8 +4,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { HomePage } from './pages/HomePage';
 import { ExplorePage } from './pages/ExplorePage';
-import { TrendingPage } from './pages/TrendingPage';
-import { CategoriesPage } from './pages/CategoriesPage';
+import { PopularPage } from './pages/PopularPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { LoginForm } from './components/Auth/LoginForm';
@@ -20,8 +19,7 @@ function App() {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/explore" element={<ExplorePage />} />
-            <Route path="/trending" element={<TrendingPage />} />
-            <Route path="/categories" element={<CategoriesPage />} />
+            <Route path="/popular" element={<PopularPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/login" element={<LoginForm />} />

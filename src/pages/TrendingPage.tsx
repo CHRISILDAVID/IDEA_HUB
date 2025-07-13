@@ -5,9 +5,9 @@ import { TrendingUp, Calendar, Star, GitFork, Eye, Clock } from 'lucide-react';
 import { api } from '../services/api';
 import { Idea } from '../types';
 
-export const TrendingPage: React.FC = () => {
+export const PopularPage: React.FC = () => {
   const [ideas, setIdeas] = useState<Idea[]>([]);
-  const [trendingStats, setTrendingStats] = useState({
+  const [popularStats, setPopularStats] = useState({
     totalViews: 0,
     starsThisWeek: 0,
     forksThisWeek: 0,
@@ -19,29 +19,29 @@ export const TrendingPage: React.FC = () => {
   const [category, setCategory] = useState('all');
 
   useEffect(() => {
-    fetchTrendingIdeas();
-    fetchTrendingStats();
+    fetchPopularIdeas();
+    fetchPopularStats();
   }, [timeframe, category]);
 
-  const fetchTrendingIdeas = async () => {
+  const fetchPopularIdeas = async () => {
     try {
       setLoading(true);
-      const response = await api.getTrendingIdeas();
+      const response = await api.getPopularIdeas();
       setIdeas(response.data);
     } catch (error) {
-      console.error('Error fetching trending ideas:', error);
+      console.error('Error fetching popular ideas:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchTrendingStats = async () => {
+  const fetchPopularStats = async () => {
     try {
       setStatsLoading(true);
-      const response = await api.getTrendingStats();
-      setTrendingStats(response.data);
+      const response = await api.getPopularStats();
+      setPopularStats(response.data);
     } catch (error) {
-      console.error('Error fetching trending stats:', error);
+      console.error('Error fetching popular stats:', error);
     } finally {
       setStatsLoading(false);
     }
@@ -83,7 +83,7 @@ export const TrendingPage: React.FC = () => {
             </div>
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                Trending Ideas
+                Popular Ideas
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
                 Discover the most popular ideas gaining momentum
@@ -117,7 +117,7 @@ export const TrendingPage: React.FC = () => {
                     <div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">Total Views</p>
                       <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                        {formatNumber(trendingStats.totalViews)}
+                        {formatNumber(popularStats.totalViews)}
                       </p>
                     </div>
                   </div>
@@ -131,7 +131,7 @@ export const TrendingPage: React.FC = () => {
                     <div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">Stars {getTimeframeLabel()}</p>
                       <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                        {formatNumber(trendingStats.starsThisWeek)}
+                        {formatNumber(popularStats.starsThisWeek)}
                       </p>
                     </div>
                   </div>
@@ -145,7 +145,7 @@ export const TrendingPage: React.FC = () => {
                     <div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">Forks {getTimeframeLabel()}</p>
                       <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                        {formatNumber(trendingStats.forksThisWeek)}
+                        {formatNumber(popularStats.forksThisWeek)}
                       </p>
                     </div>
                   </div>
@@ -159,7 +159,7 @@ export const TrendingPage: React.FC = () => {
                     <div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">New Ideas</p>
                       <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                        {formatNumber(trendingStats.newIdeas)}
+                        {formatNumber(popularStats.newIdeas)}
                       </p>
                     </div>
                   </div>
@@ -217,7 +217,7 @@ export const TrendingPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Trending Ideas */}
+        {/* Popular Ideas */}
         <div className="space-y-6">
           {loading ? (
             <div className="space-y-4">
@@ -240,17 +240,17 @@ export const TrendingPage: React.FC = () => {
             <div className="text-center py-12">
               <TrendingUp className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                No trending ideas found
+                No popular ideas found
               </h3>
               <p className="text-gray-600 dark:text-gray-400">
-                Try adjusting your filters or check back later for new trending content.
+                Try adjusting your filters or check back later for new popular content.
               </p>
             </div>
           ) : (
             <div className="space-y-6">
               {ideas.map((idea, index) => (
                 <div key={idea.id} className="relative">
-                  {/* Trending Rank */}
+                  {/* Popular Rank */}
                   <div className="absolute -left-4 top-6 z-10">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white ${
                       index === 0 ? 'bg-yellow-500' :

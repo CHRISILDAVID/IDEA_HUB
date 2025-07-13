@@ -429,7 +429,7 @@ export const supabaseApi = {
   },
 
   // Get trending ideas
-  async getTrendingIdeas(): Promise<ApiResponse<Idea[]>> {
+  async getPopularIdeas(): Promise<ApiResponse<Idea[]>> {
     try {
       const { data, error } = await supabase
         .from('ideas')
@@ -452,7 +452,7 @@ export const supabaseApi = {
 
       return {
         data: ideas,
-        message: 'Trending ideas retrieved successfully',
+        message: 'Popular ideas retrieved successfully',
         success: true,
       };
     } catch (error) {
@@ -517,7 +517,7 @@ export const supabaseApi = {
   },
 
   // Get trending statistics
-  async getTrendingStats(): Promise<ApiResponse<{
+  async getPopularStats(): Promise<ApiResponse<{
     totalViews: number;
     starsThisWeek: number;
     forksThisWeek: number;
@@ -564,7 +564,7 @@ export const supabaseApi = {
           forksThisWeek: forksThisWeek || 0,
           newIdeas: newIdeas || 0,
         },
-        message: 'Trending stats retrieved successfully',
+        message: 'Popular stats retrieved successfully',
         success: true,
       };
     } catch (error) {

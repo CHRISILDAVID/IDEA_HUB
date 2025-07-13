@@ -7,7 +7,6 @@ import {
   GitFork, 
   TrendingUp, 
   Users, 
-  BookOpen,
   Settings,
   User
 } from 'lucide-react';
@@ -24,8 +23,7 @@ export const Sidebar: React.FC = () => {
   const navItems = [
     { path: '/', label: 'Home', icon: Home },
     { path: '/explore', label: 'Explore', icon: Compass },
-    { path: '/trending', label: 'Trending', icon: TrendingUp },
-    { path: '/categories', label: 'Categories', icon: BookOpen },
+    { path: '/popular', label: 'Popular', icon: TrendingUp },
   ];
 
   const userNavItems = isAuthenticated ? [

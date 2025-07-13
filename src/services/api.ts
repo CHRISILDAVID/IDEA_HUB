@@ -100,8 +100,8 @@ export const api = {
   },
 
   // Get trending ideas
-  async getTrendingIdeas(): Promise<ApiResponse<Idea[]>> {
-    return supabaseApi.getTrendingIdeas();
+  async getPopularIdeas(): Promise<ApiResponse<Idea[]>> {
+    return supabaseApi.getPopularIdeas();
   },
 
   // Get user's ideas
@@ -140,13 +140,13 @@ export const api = {
   },
 
   // Get trending statistics
-  async getTrendingStats(): Promise<ApiResponse<{
+  async getPopularStats(): Promise<ApiResponse<{
     totalViews: number;
     starsThisWeek: number;
     forksThisWeek: number;
     newIdeas: number;
   }>> {
-    return supabaseApi.getTrendingStats();
+    return supabaseApi.getPopularStats();
   },
 
   // Get user dashboard statistics
