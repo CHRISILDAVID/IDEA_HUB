@@ -264,8 +264,6 @@ export const HomePage: React.FC = () => {
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       Connect with innovators worldwide and grow together.
                     </p>
-                      Connect with innovators worldwide and grow together.
-                    </p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-3">
