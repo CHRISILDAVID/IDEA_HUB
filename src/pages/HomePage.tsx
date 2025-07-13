@@ -262,6 +262,9 @@ export const HomePage: React.FC = () => {
                   <div>
                     <h4 className="font-semibold text-gray-900 dark:text-white">Global Community</h4>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Connect with innovators worldwide and grow together.
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="bg-orange-100 dark:bg-orange-900/20 p-2 rounded-lg">
