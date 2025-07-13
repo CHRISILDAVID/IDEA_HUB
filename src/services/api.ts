@@ -106,8 +106,27 @@ export const api = {
 
   // Get user's ideas
   async getUserIdeas(userId: string): Promise<ApiResponse<Idea[]>> {
-    // TODO: Implement getUserIdeas in supabaseApi
-    return supabaseApi.getIdeas();
+    return supabaseApi.getIdeas({ author: userId });
+  },
+
+  // Get user's starred ideas
+  async getStarredIdeas(userId: string): Promise<ApiResponse<Idea[]>> {
+    return supabaseApi.getStarredIdeas(userId);
+  },
+
+  // Get user's forked ideas
+  async getForkedIdeas(userId: string): Promise<ApiResponse<Idea[]>> {
+    return supabaseApi.getForkedIdeas(userId);
+  },
+
+  // Get users that the current user is following
+  async getFollowingUsers(userId: string): Promise<ApiResponse<User[]>> {
+    return supabaseApi.getFollowingUsers(userId);
+  },
+
+  // Mark notification as read
+  async markNotificationAsRead(notificationId: string): Promise<ApiResponse<void>> {
+    return supabaseApi.markNotificationAsRead(notificationId);
   },
 
   // Get notifications

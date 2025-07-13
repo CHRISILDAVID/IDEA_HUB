@@ -461,6 +461,321 @@ export const supabaseApi = {
     }
   },
 
+  // Get user's starred ideas
+  async getStarredIdeas(userId: string): Promise<ApiResponse<Idea[]>> {
+    try {
+      const { data, error } = await supabase
+        .from('stars')
+        .select(`
+          idea:ideas(
+            *,
+            author:users(*)
+          )
+        `)
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      const ideas = data?.map((item: any) => 
+        transformDbIdea({ ...item.idea, is_starred: true })
+      ) || [];
+
+      return {
+        data: ideas,
+        message: 'Starred ideas retrieved successfully',
+        success: true,
+      };
+    } catch (error) {
+      handleSupabaseError(error);
+      throw error;
+    }
+  },
+
+  // Get user's forked ideas
+  async getForkedIdeas(userId: string): Promise<ApiResponse<Idea[]>> {
+    try {
+      const { data, error } = await supabase
+        .from('ideas')
+        .select(`
+          *,
+          author:users(*),
+          is_starred:stars!left(user_id)
+        `)
+        .eq('author_id', userId)
+        .eq('is_fork', true);
+
+      if (error) throw error;
+
+      const ideas = data?.map((item: any) => {
+        const isStarred = item.is_starred?.length > 0;
+        return transformDbIdea({ ...item, is_starred: isStarred });
+      }) || [];
+
+      return {
+        data: ideas,
+        message: 'Forked ideas retrieved successfully',
+        success: true,
+      };
+    } catch (error) {
+      handleSupabaseError(error);
+      throw error;
+    }
+  },
+
+  // Get users that the current user is following
+  async getFollowingUsers(userId: string): Promise<ApiResponse<User[]>> {
+    try {
+      const { data, error } = await supabase
+        .from('follows')
+        .select(`
+          following:users!follows_following_id_fkey(*)
+        `)
+        .eq('follower_id', userId);
+
+      if (error) throw error;
+
+      const users = data?.map((item: any) => transformDbUser(item.following)) || [];
+
+      return {
+        data: users,
+        message: 'Following users retrieved successfully',
+        success: true,
+      };
+    } catch (error) {
+      handleSupabaseError(error);
+      throw error;
+    }
+  },
+
+  // Get real notifications from database
+  async getNotifications(): Promise<ApiResponse<Notification[]>> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      const { data, error } = await supabase
+        .from('notifications')
+        .select(`
+          *,
+          related_user:users!notifications_related_user_id_fkey(*),
+          related_idea:ideas!notifications_related_idea_id_fkey(*)
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+
+      const notifications: Notification[] = data?.map((item: any) => ({
+        id: item.id,
+        type: item.type as 'star' | 'fork' | 'comment' | 'mention' | 'follow' | 'issue',
+        message: item.message,
+        isRead: item.is_read,
+        createdAt: item.created_at,
+        relatedUser: item.related_user ? transformDbUser(item.related_user) : undefined,
+        relatedIdea: item.related_idea ? {
+          id: item.related_idea.id,
+          title: item.related_idea.title,
+          description: item.related_idea.description,
+          content: item.related_idea.content,
+          author: transformDbUser(item.related_idea.author),
+          tags: item.related_idea.tags,
+          category: item.related_idea.category,
+          license: item.related_idea.license,
+          version: item.related_idea.version,
+          stars: item.related_idea.stars,
+          forks: item.related_idea.forks,
+          isStarred: false,
+          isFork: item.related_idea.is_fork,
+          forkedFrom: item.related_idea.forked_from,
+          visibility: item.related_idea.visibility as 'public' | 'private',
+          createdAt: item.related_idea.created_at,
+          updatedAt: item.related_idea.updated_at,
+          collaborators: [],
+          comments: [],
+          issues: [],
+          language: item.related_idea.language,
+          status: item.related_idea.status as 'draft' | 'published' | 'archived',
+        } : undefined,
+        relatedUrl: item.related_url,
+      })) || [];
+
+      return {
+        data: notifications,
+        message: 'Notifications retrieved successfully',
+        success: true,
+      };
+    } catch (error) {
+      handleSupabaseError(error);
+      throw error;
+    }
+  },
+
+  // Mark notification as read
+  async markNotificationAsRead(notificationId: string): Promise<ApiResponse<void>> {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('id', notificationId);
+
+      if (error) throw error;
+
+      return {
+        data: undefined,
+        message: 'Notification marked as read',
+        success: true,
+      };
+    } catch (error) {
+      handleSupabaseError(error);
+      throw error;
+    }
+  },
+
+  // Get real activity feed from database
+  async getActivityFeed(): Promise<ApiResponse<Activity[]>> {
+    try {
+      // Get recent stars
+      const { data: recentStars, error: starsError } = await supabase
+        .from('stars')
+        .select(`
+          created_at,
+          user:users(*),
+          idea:ideas(*)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (starsError) throw starsError;
+
+      // Get recent ideas
+      const { data: recentIdeas, error: ideasError } = await supabase
+        .from('ideas')
+        .select(`
+          created_at,
+          author:users(*),
+          id,
+          title
+        `)
+        .eq('visibility', 'public')
+        .eq('status', 'published')
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (ideasError) throw ideasError;
+
+      // Get recent follows
+      const { data: recentFollows, error: followsError } = await supabase
+        .from('follows')
+        .select(`
+          created_at,
+          follower:users!follows_follower_id_fkey(*),
+          following:users!follows_following_id_fkey(*)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (followsError) throw followsError;
+
+      // Combine and format activities
+      const activities: Activity[] = [];
+
+      // Add star activities
+      recentStars?.forEach((star: any) => {
+        activities.push({
+          id: `star-${star.user.id}-${star.idea.id}-${star.created_at}`,
+          type: 'starred',
+          user: transformDbUser(star.user),
+          idea: star.idea ? {
+            id: star.idea.id,
+            title: star.idea.title,
+            description: star.idea.description,
+            content: star.idea.content,
+            author: transformDbUser(star.user),
+            tags: star.idea.tags,
+            category: star.idea.category,
+            license: star.idea.license,
+            version: star.idea.version,
+            stars: star.idea.stars,
+            forks: star.idea.forks,
+            isStarred: false,
+            isFork: star.idea.is_fork,
+            forkedFrom: star.idea.forked_from,
+            visibility: star.idea.visibility as 'public' | 'private',
+            createdAt: star.idea.created_at,
+            updatedAt: star.idea.updated_at,
+            collaborators: [],
+            comments: [],
+            issues: [],
+            language: star.idea.language,
+            status: star.idea.status as 'draft' | 'published' | 'archived',
+          } : undefined,
+          description: `starred`,
+          timestamp: star.created_at,
+        });
+      });
+
+      // Add idea creation activities
+      recentIdeas?.forEach((idea: any) => {
+        activities.push({
+          id: `idea-${idea.id}-${idea.created_at}`,
+          type: 'created',
+          user: transformDbUser(idea.author),
+          idea: {
+            id: idea.id,
+            title: idea.title,
+            description: '',
+            content: '',
+            author: transformDbUser(idea.author),
+            tags: [],
+            category: '',
+            license: '',
+            version: '',
+            stars: 0,
+            forks: 0,
+            isStarred: false,
+            isFork: false,
+            forkedFrom: null,
+            visibility: 'public' as 'public' | 'private',
+            createdAt: idea.created_at,
+            updatedAt: idea.created_at,
+            collaborators: [],
+            comments: [],
+            issues: [],
+            language: null,
+            status: 'published' as 'draft' | 'published' | 'archived',
+          },
+          description: `created a new idea`,
+          timestamp: idea.created_at,
+        });
+      });
+
+      // Add follow activities
+      recentFollows?.forEach((follow: any) => {
+        activities.push({
+          id: `follow-${follow.follower.id}-${follow.following.id}-${follow.created_at}`,
+          type: 'created',
+          user: transformDbUser(follow.follower),
+          description: `started following ${follow.following.username}`,
+          timestamp: follow.created_at,
+        });
+      });
+
+      // Sort by timestamp and limit
+      activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      const limitedActivities = activities.slice(0, 20);
+
+      return {
+        data: limitedActivities,
+        message: 'Activity feed retrieved successfully',
+        success: true,
+      };
+    } catch (error) {
+      handleSupabaseError(error);
+      throw error;
+    }
+  },
+
   // Get category statistics
   async getCategoryStats(): Promise<ApiResponse<Array<{
     name: string;
