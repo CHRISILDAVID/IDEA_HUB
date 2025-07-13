@@ -4,7 +4,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { HomePage } from './pages/HomePage';
 import { ExplorePage } from './pages/ExplorePage';
-import { PopularPage } from './pages/PopularPage';
+import { PopularPage } from './pages/TrendingPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { LoginForm } from './components/Auth/LoginForm';
