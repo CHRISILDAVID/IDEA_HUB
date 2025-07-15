@@ -1,14 +1,21 @@
-import { supabaseApi } from './supabaseApi';
-import { User, Idea, Comment, Issue, Notification, Activity, SearchFilters, ApiResponse } from '../types';
+import { 
+  AuthService,
+  IdeasService,
+  UsersService,
+  NotificationsService,
+  ActivitiesService,
+  StatsService
+} from './api/index';
+import { User, Idea, Comment, Notification, Activity, SearchFilters, ApiResponse } from '../types';
 
-// Wrapper API that uses Supabase for real data
-// This maintains the same interface as the mock API for easy migration
+// Wrapper API that uses the structured modular services
+// This maintains the same interface for the frontend while using clean, modular backend services
 
 export const api = {
   // Authentication
   async login(email: string, password: string): Promise<ApiResponse<User>> {
-    await supabaseApi.signIn(email, password);
-    const user = await supabaseApi.getCurrentUser();
+    await AuthService.signIn(email, password);
+    const user = await AuthService.getCurrentUser();
     if (!user) throw new Error('Login failed');
     
     return {
@@ -19,12 +26,12 @@ export const api = {
   },
 
   async register(userData: any): Promise<ApiResponse<User>> {
-    await supabaseApi.signUp(userData.email, userData.password, {
+    await AuthService.signUp(userData.email, userData.password, {
       username: userData.username,
       fullName: userData.fullName,
     });
     
-    const user = await supabaseApi.getCurrentUser();
+    const user = await AuthService.getCurrentUser();
     if (!user) throw new Error('Registration failed');
     
     return {
@@ -36,36 +43,36 @@ export const api = {
 
   // Ideas
   async getIdeas(filters?: Partial<SearchFilters>): Promise<ApiResponse<Idea[]>> {
-    return supabaseApi.getIdeas(filters);
+    return IdeasService.getIdeas(filters);
   },
 
   async getIdea(id: string): Promise<ApiResponse<Idea>> {
-    return supabaseApi.getIdea(id);
+    return IdeasService.getIdea(id);
   },
 
   async createIdea(ideaData: Partial<Idea>): Promise<ApiResponse<Idea>> {
-    return supabaseApi.createIdea(ideaData);
+    return IdeasService.createIdea(ideaData);
   },
 
   async updateIdea(id: string, ideaData: Partial<Idea>): Promise<ApiResponse<Idea>> {
-    return supabaseApi.updateIdea(id, ideaData);
+    return IdeasService.updateIdea(id, ideaData);
   },
 
   async deleteIdea(id: string): Promise<ApiResponse<void>> {
-    return supabaseApi.deleteIdea(id);
+    return IdeasService.deleteIdea(id);
   },
 
   async starIdea(id: string): Promise<ApiResponse<void>> {
-    return supabaseApi.starIdea(id);
+    return IdeasService.starIdea(id);
   },
 
   async forkIdea(id: string): Promise<ApiResponse<Idea>> {
-    return supabaseApi.forkIdea(id);
+    return IdeasService.forkIdea(id);
   },
 
   // Comments
-  async addComment(ideaId: string, content: string): Promise<ApiResponse<Comment>> {
-    // TODO: Implement comment functionality in supabaseApi
+  async addComment(_ideaId: string, content: string): Promise<ApiResponse<Comment>> {
+    // TODO: Implement comment functionality in structured modules
     const comment: Comment = {
       id: Date.now().toString(),
       content,
@@ -96,47 +103,47 @@ export const api = {
 
   // Search
   async searchIdeas(query: string): Promise<ApiResponse<Idea[]>> {
-    return supabaseApi.getIdeas({ query });
+    return IdeasService.getIdeas({ query });
   },
 
   // Get trending ideas
   async getPopularIdeas(): Promise<ApiResponse<Idea[]>> {
-    return supabaseApi.getPopularIdeas();
+    return IdeasService.getPopularIdeas();
   },
 
   // Get user's ideas
   async getUserIdeas(userId: string): Promise<ApiResponse<Idea[]>> {
-    return supabaseApi.getIdeas({ author: userId });
+    return IdeasService.getUserIdeas(userId);
   },
 
   // Get user's starred ideas
   async getStarredIdeas(userId: string): Promise<ApiResponse<Idea[]>> {
-    return supabaseApi.getStarredIdeas(userId);
+    return IdeasService.getStarredIdeas(userId);
   },
 
   // Get user's forked ideas
   async getForkedIdeas(userId: string): Promise<ApiResponse<Idea[]>> {
-    return supabaseApi.getForkedIdeas(userId);
+    return IdeasService.getForkedIdeas(userId);
   },
 
   // Get users that the current user is following
   async getFollowingUsers(userId: string): Promise<ApiResponse<User[]>> {
-    return supabaseApi.getFollowingUsers(userId);
+    return UsersService.getFollowingUsers(userId);
   },
 
   // Mark notification as read
   async markNotificationAsRead(notificationId: string): Promise<ApiResponse<void>> {
-    return supabaseApi.markNotificationAsRead(notificationId);
+    return NotificationsService.markNotificationAsRead(notificationId);
   },
 
   // Get notifications
   async getNotifications(): Promise<ApiResponse<Notification[]>> {
-    return supabaseApi.getNotifications();
+    return NotificationsService.getNotifications();
   },
 
   // Get activity feed
   async getActivityFeed(): Promise<ApiResponse<Activity[]>> {
-    return supabaseApi.getActivityFeed();
+    return ActivitiesService.getActivityFeed();
   },
 
   // Get platform statistics
@@ -146,7 +153,7 @@ export const api = {
     ideasThisWeek: number;
     totalCollaborations: number;
   }>> {
-    return supabaseApi.getPlatformStats();
+    return StatsService.getPlatformStats();
   },
 
   // Get category statistics
@@ -155,7 +162,7 @@ export const api = {
     count: number;
     trending: boolean;
   }>>> {
-    return supabaseApi.getCategoryStats();
+    return StatsService.getCategoryStats();
   },
 
   // Get trending statistics
@@ -165,7 +172,7 @@ export const api = {
     forksThisWeek: number;
     newIdeas: number;
   }>> {
-    return supabaseApi.getPopularStats();
+    return StatsService.getPopularStats();
   },
 
   // Get user dashboard statistics
@@ -176,6 +183,6 @@ export const api = {
     totalViews: number;
     recentActivity: any[];
   }>> {
-    return supabaseApi.getUserDashboardStats(userId);
+    return StatsService.getUserDashboardStats(userId);
   },
 };
