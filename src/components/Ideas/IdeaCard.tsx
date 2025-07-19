@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Star, GitFork, MessageCircle, Clock, Eye } from 'lucide-react';
 import { Idea } from '../../types';
 import { api } from '../../services/api';
+import { useAuthGuard } from '../../hooks/useAuthGuard';
 
 interface IdeaCardProps {
   idea: Idea;
@@ -10,28 +11,34 @@ interface IdeaCardProps {
 }
 
 export const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onUpdate }) => {
+  const { checkAuthForAction } = useAuthGuard();
+
   const handleStar = async (e: React.MouseEvent) => {
     e.preventDefault();
-    try {
-      await api.starIdea(idea.id);
-      if (onUpdate) {
-        onUpdate({ ...idea, isStarred: !idea.isStarred, stars: idea.stars + (idea.isStarred ? -1 : 1) });
+    checkAuthForAction(async () => {
+      try {
+        await api.starIdea(idea.id);
+        if (onUpdate) {
+          onUpdate({ ...idea, isStarred: !idea.isStarred, stars: idea.stars + (idea.isStarred ? -1 : 1) });
+        }
+      } catch (error) {
+        console.error('Error starring idea:', error);
       }
-    } catch (error) {
-      console.error('Error starring idea:', error);
-    }
+    });
   };
 
   const handleFork = async (e: React.MouseEvent) => {
     e.preventDefault();
-    try {
-      await api.forkIdea(idea.id);
-      if (onUpdate) {
-        onUpdate({ ...idea, forks: idea.forks + 1 });
+    checkAuthForAction(async () => {
+      try {
+        await api.forkIdea(idea.id);
+        if (onUpdate) {
+          onUpdate({ ...idea, forks: idea.forks + 1 });
+        }
+      } catch (error) {
+        console.error('Error forking idea:', error);
       }
-    } catch (error) {
-      console.error('Error forking idea:', error);
-    }
+    });
   };
 
   const formatDate = (dateString: string) => {

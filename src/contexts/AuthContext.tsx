@@ -31,12 +31,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const getSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
+        
         if (session?.user) {
           const currentUser = await supabaseApi.getCurrentUser();
           setUser(currentUser);
         }
       } catch (error) {
-        console.error('Error getting session:', error);
+        console.error('AuthContext: Error getting session:', error);
       } finally {
         setIsLoading(false);
       }
@@ -47,14 +48,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (event === 'SIGNED_IN' && session?.user && session.user.email_confirmed_at) {
-          // Ensure user profile exists
-          await ensureUserProfile(session.user);
-          const currentUser = await supabaseApi.getCurrentUser();
-          setUser(currentUser);
-        } else if (event === 'TOKEN_REFRESHED' && session?.user && session.user.email_confirmed_at) {
-          const currentUser = await supabaseApi.getCurrentUser();
-          setUser(currentUser);
+        
+        if (event === 'SIGNED_IN' && session?.user) {
+          try {
+            const currentUser = await supabaseApi.getCurrentUser();
+            setUser(currentUser);
+          } catch (error) {
+            console.error('AuthContext: Error getting current user:', error);
+            setUser(null);
+          }
+        } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+          try {
+            const currentUser = await supabaseApi.getCurrentUser();
+            setUser(currentUser);
+          } catch (error) {
+            console.error('AuthContext: Error getting current user after refresh:', error);
+          }
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
         }
@@ -65,39 +74,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => subscription.unsubscribe();
   }, []);
 
-  const ensureUserProfile = async (user: any) => {
-    try {
-      // Check if profile exists
-      const { data: existingProfile } = await supabase
-        .from('users')
-        .select('id')
-        .eq('id', user.id)
-        .single();
-
-      if (!existingProfile) {
-        // Create profile from user metadata
-        const userData = {
-          id: user.id,
-          username: user.user_metadata?.username || user.email?.split('@')[0] || 'user',
-          email: user.email,
-          full_name: user.user_metadata?.full_name || 'User',
-        };
-
-        // Use type assertion to bypass type checking
-        const { error } = await supabase
-          .from('users')
-          .insert(userData as any);
-
-        if (error) {
-          console.error('Error creating user profile:', error);
-          throw error; // Propagate the error so we can handle it
-        }
-      }
-    } catch (error) {
-      console.error('Error ensuring user profile:', error);
-      throw error; // Propagate the error so it can be handled by the caller
-    }
-  };
   const login = async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
     try {

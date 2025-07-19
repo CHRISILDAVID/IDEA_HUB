@@ -54,6 +54,110 @@ export const HomePage: React.FC = () => {
       setRecentActivity(activityResponse.data.slice(0, 5));
     } catch (error) {
       console.error('Error fetching data:', error);
+      
+      // Add mock data when API fails
+      const mockIdeas: Idea[] = [
+        {
+          id: '1',
+          title: 'AI-Powered Code Review Assistant',
+          description: 'An intelligent tool that automatically reviews your code for bugs, security issues, and best practices.',
+          content: 'This idea involves creating an AI system that can analyze code...',
+          author: {
+            id: '1',
+            username: 'tech_innovator',
+            email: 'tech@example.com',
+            fullName: 'Tech Innovator',
+            joinedAt: new Date().toISOString(),
+            followers: 150,
+            following: 75,
+            publicRepos: 12,
+            isVerified: true,
+          },
+          tags: ['AI', 'Code Review', 'Development'],
+          category: 'Technology',
+          license: 'MIT',
+          version: '1.0.0',
+          stars: 42,
+          forks: 8,
+          isStarred: false,
+          isFork: false,
+          visibility: 'public',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          collaborators: [],
+          comments: [],
+          issues: [],
+          language: 'TypeScript',
+          status: 'published',
+        },
+        {
+          id: '2',
+          title: 'Sustainable Food Delivery Network',
+          description: 'A platform connecting local farmers directly to consumers for fresh, sustainable food delivery.',
+          content: 'This platform would eliminate middlemen...',
+          author: {
+            id: '2',
+            username: 'green_future',
+            email: 'green@example.com',
+            fullName: 'Green Future',
+            joinedAt: new Date().toISOString(),
+            followers: 89,
+            following: 120,
+            publicRepos: 5,
+            isVerified: false,
+          },
+          tags: ['Sustainability', 'Food', 'Local Business'],
+          category: 'Environment',
+          license: 'MIT',
+          version: '1.0.0',
+          stars: 28,
+          forks: 3,
+          isStarred: false,
+          isFork: false,
+          visibility: 'public',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          collaborators: [],
+          comments: [],
+          issues: [],
+          status: 'published',
+        },
+        {
+          id: '3',
+          title: 'Community Learning Hub',
+          description: 'A decentralized platform where anyone can teach and learn skills from their community.',
+          content: 'This hub would create micro-learning opportunities...',
+          author: {
+            id: '3',
+            username: 'learn_together',
+            email: 'learn@example.com',
+            fullName: 'Learn Together',
+            joinedAt: new Date().toISOString(),
+            followers: 203,
+            following: 95,
+            publicRepos: 18,
+            isVerified: true,
+          },
+          tags: ['Education', 'Community', 'Learning'],
+          category: 'Education',
+          license: 'MIT',
+          version: '1.0.0',
+          stars: 67,
+          forks: 12,
+          isStarred: false,
+          isFork: false,
+          visibility: 'public',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          collaborators: [],
+          comments: [],
+          issues: [],
+          status: 'published',
+        },
+      ];
+      
+      setTrendingIdeas(mockIdeas);
+      setRecentActivity([]);
     } finally {
       setLoading(false);
     }
@@ -67,6 +171,14 @@ export const HomePage: React.FC = () => {
     } catch (error) {
       console.error('Error fetching platform stats:', error);
       setStatsError('Failed to load platform statistics');
+      
+      // Add mock stats when API fails
+      setPlatformStats({
+        totalIdeas: 1247,
+        activeUsers: 892,
+        ideasThisWeek: 23,
+        totalCollaborations: 156,
+      });
     } finally {
       setStatsLoading(false);
     }

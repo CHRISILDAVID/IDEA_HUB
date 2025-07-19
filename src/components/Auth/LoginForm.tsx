@@ -20,13 +20,17 @@ export const LoginForm: React.FC = () => {
       setError('An unexpected error occurred. Please try again.');
     }
   }, [searchParams]);
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
     try {
       await login(email, password);
-      navigate('/');
+      
+      // Redirect to intended destination or home page
+      const redirectTo = searchParams.get('redirect') || '/';
+      navigate(redirectTo, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invalid email or password');
     }

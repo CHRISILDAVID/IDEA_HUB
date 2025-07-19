@@ -21,22 +21,7 @@ export class AuthService {
 
       if (authError) throw authError;
 
-      // Only create profile if user is confirmed (email confirmation disabled)
-      // or if we have a confirmed user
-      if (authData.user && authData.user.email_confirmed_at) {
-        // Create user profile
-        const { error: profileError } = await supabase
-          .from('users')
-          .insert({
-            id: authData.user.id,
-            username: userData.username,
-            email: email,
-            full_name: userData.fullName,
-          } as any);
-
-        if (profileError) throw profileError;
-      }
-
+      // The profile will be created automatically when getCurrentUser is called
       return authData;
     } catch (error) {
       handleSupabaseError(error);
@@ -81,14 +66,52 @@ export class AuthService {
       
       if (!user) return null;
 
+      // Try to get user profile
       const { data: profile, error } = await supabase
         .from('users')
         .select('*')
         .eq('id', user.id as any)
         .single();
 
-      if (error) throw error;
-      if (!profile) return null;
+      if (error && error.code !== 'PGRST116') { // PGRST116 = not found
+        console.error('Error getting user profile:', error);
+        throw error;
+      }
+      
+      if (!profile) {
+        // Profile doesn't exist, create a basic one from auth user
+        console.log('Creating missing user profile for:', user.id);
+        const newProfile = {
+          id: user.id,
+          username: user.user_metadata?.username || user.email?.split('@')[0] || 'user',
+          email: user.email,
+          full_name: user.user_metadata?.full_name || 'User',
+        };
+
+        const { data: createdProfile, error: createError } = await supabase
+          .from('users')
+          .insert(newProfile as any)
+          .select()
+          .single();
+
+        if (createError) {
+          console.error('Error creating user profile:', createError);
+          // Return a basic user object even if profile creation fails
+          return {
+            id: user.id,
+            username: user.user_metadata?.username || user.email?.split('@')[0] || 'user',
+            email: user.email || '',
+            fullName: user.user_metadata?.full_name || 'User',
+            joinedAt: user.created_at || new Date().toISOString(),
+            followers: 0,
+            following: 0,
+            publicRepos: 0,
+            isVerified: false,
+          };
+        }
+
+        return transformDbUser(createdProfile as unknown as DbUser);
+      }
       
       return transformDbUser(profile as unknown as DbUser);
     } catch (error) {

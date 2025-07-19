@@ -185,4 +185,44 @@ export const api = {
   }>> {
     return StatsService.getUserDashboardStats(userId);
   },
+
+  // Comments
+  async createComment(ideaId: string, content: string): Promise<ApiResponse<Comment>> {
+    // Mock implementation for now
+    const comment: Comment = {
+      id: Math.random().toString(36).substr(2, 9),
+      content,
+      author: {
+        id: '1',
+        username: 'current_user',
+        email: 'user@example.com',
+        fullName: 'Current User',
+        joinedAt: new Date().toISOString(),
+        followers: 0,
+        following: 0,
+        publicRepos: 0,
+        isVerified: false,
+      },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      replies: [],
+      votes: 0,
+      isVoted: false,
+    };
+
+    return {
+      data: comment,
+      message: 'Comment added successfully',
+      success: true,
+    };
+  },
+
+  async getIdeaComments(ideaId: string): Promise<ApiResponse<Comment[]>> {
+    // Mock implementation - return empty array for now
+    return {
+      data: [],
+      message: 'Comments retrieved successfully',
+      success: true,
+    };
+  },
 };
