@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { authCookieManager } from '../utils/authCookieManager';
 import { Loader2 } from 'lucide-react';
 
 export const AuthCallback: React.FC = () => {
@@ -9,6 +10,7 @@ export const AuthCallback: React.FC = () => {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
+        // First, try to get the session from the URL hash
         const { data, error } = await supabase.auth.getSession();
         
         if (error) {
@@ -18,11 +20,21 @@ export const AuthCallback: React.FC = () => {
         }
 
         if (data.session) {
+          // Session exists, ensure cookies are properly set
+          await authCookieManager.initializeFromCookies();
+          
           // User is confirmed and logged in
           navigate('/?confirmed=true');
         } else {
-          // No session, redirect to login
-          navigate('/login');
+          // No session, check if we can restore from cookies
+          const authData = await authCookieManager.handlePageReload();
+          
+          if (authData?.session) {
+            navigate('/?confirmed=true');
+          } else {
+            // No valid session found, redirect to login
+            navigate('/login');
+          }
         }
       } catch (error) {
         console.error('Unexpected error during auth callback:', error);

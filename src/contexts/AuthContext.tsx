@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { supabase } from '../lib/supabase';
 import { supabaseApi } from '../services/api/index';
 import { User } from '../types';
+import { authCookieManager } from '../utils/authCookieManager';
 
 interface AuthContextType {
   user: User | null;
@@ -25,53 +26,112 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    // Check for existing session
-    const getSession = async () => {
+    let mounted = true;
+    let authSubscription: any;
+
+    // Enhanced session initialization with cookie support
+    const initializeAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        console.log('AuthContext: Initializing authentication...');
         
-        if (session?.user) {
-          const currentUser = await supabaseApi.getCurrentUser();
-          setUser(currentUser);
+        // First, try to get the current session from cookies
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('AuthContext: Error getting session:', sessionError);
+        }
+
+        if (mounted && session?.user) {
+          console.log('AuthContext: Found existing session for user:', session.user.id);
+          try {
+            const currentUser = await supabaseApi.getCurrentUser();
+            if (mounted) {
+              setUser(currentUser);
+              console.log('AuthContext: User loaded from session:', currentUser?.username);
+            }
+          } catch (userError) {
+            console.error('AuthContext: Error getting current user:', userError);
+            if (mounted) {
+              setUser(null);
+            }
+          }
+        } else {
+          console.log('AuthContext: No existing session found');
+          if (mounted) {
+            setUser(null);
+          }
         }
       } catch (error) {
-        console.error('AuthContext: Error getting session:', error);
+        console.error('AuthContext: Error initializing auth:', error);
+        if (mounted) {
+          setUser(null);
+        }
       } finally {
-        setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+          setIsInitialized(true);
+        }
       }
     };
 
-    getSession();
+    // Set up auth state change listener
+    const setupAuthListener = () => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+          console.log('AuthContext: Auth state changed:', event, session?.user?.id);
+          
+          if (!mounted) return;
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        
-        if (event === 'SIGNED_IN' && session?.user) {
           try {
-            const currentUser = await supabaseApi.getCurrentUser();
-            setUser(currentUser);
+            if (event === 'SIGNED_IN' && session?.user) {
+              console.log('AuthContext: User signed in, loading profile...');
+              const currentUser = await supabaseApi.getCurrentUser();
+              if (mounted) {
+                setUser(currentUser);
+                setIsLoading(false);
+              }
+            } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+              console.log('AuthContext: Token refreshed, updating user...');
+              const currentUser = await supabaseApi.getCurrentUser();
+              if (mounted) {
+                setUser(currentUser);
+              }
+            } else if (event === 'SIGNED_OUT') {
+              console.log('AuthContext: User signed out');
+              if (mounted) {
+                setUser(null);
+                setIsLoading(false);
+              }
+            }
           } catch (error) {
-            console.error('AuthContext: Error getting current user:', error);
-            setUser(null);
+            console.error('AuthContext: Error handling auth state change:', error);
+            if (mounted) {
+              setUser(null);
+              setIsLoading(false);
+            }
           }
-        } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-          try {
-            const currentUser = await supabaseApi.getCurrentUser();
-            setUser(currentUser);
-          } catch (error) {
-            console.error('AuthContext: Error getting current user after refresh:', error);
-          }
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
         }
-        setIsLoading(false);
-      }
-    );
+      );
+      
+      authSubscription = subscription;
+    };
 
-    return () => subscription.unsubscribe();
+    // Initialize authentication
+    initializeAuth().then(() => {
+      if (mounted) {
+        setupAuthListener();
+      }
+    });
+
+    return () => {
+      mounted = false;
+      if (authSubscription) {
+        authSubscription.unsubscribe();
+      }
+    };
   }, []);
 
   const login = async (email: string, password: string): Promise<void> => {
@@ -101,7 +161,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const logout = (): void => {
-    supabaseApi.signOut();
+    // Use the cookie manager for comprehensive logout
+    authCookieManager.clearAuth();
     // User will be cleared via onAuthStateChange
   };
 
