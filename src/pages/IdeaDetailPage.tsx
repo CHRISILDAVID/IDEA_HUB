@@ -1,29 +1,53 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout/Layout';
+import { CanvasEditor } from '../components/Canvas/CanvasEditor';
 import { 
   Star, 
   GitFork, 
-  MessageCircle, 
   Eye, 
   User,
   Calendar,
   Tag,
   Share2,
   Bookmark,
-  MoreHorizontal
+  MoreHorizontal,
+  ArrowLeft,
+  Users,
+  Globe,
+  Lock
 } from 'lucide-react';
 import { api } from '../services/api';
-import { Idea, Comment } from '../types';
+import { useAuth } from '../contexts/AuthContext';
+import { Idea } from '../types';
+
+interface CanvasObject {
+  id: string;
+  type: 'rectangle' | 'circle' | 'text' | 'line';
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  radius?: number;
+  text?: string;
+  fontSize?: number;
+  fill: string;
+  stroke: string;
+  strokeWidth: number;
+  rotation?: number;
+  points?: number[];
+}
 
 export const IdeaDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
   const [idea, setIdea] = useState<Idea | null>(null);
-  const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [newComment, setNewComment] = useState('');
-  const [commentLoading, setCommentLoading] = useState(false);
+  const [canvasObjects, setCanvasObjects] = useState<CanvasObject[]>([]);
+  const [isStarring, setIsStarring] = useState(false);
+  const [isForking, setIsForking] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -36,13 +60,59 @@ export const IdeaDetailPage: React.FC = () => {
     
     try {
       setLoading(true);
-      const [ideaResponse, commentsResponse] = await Promise.all([
-        api.getIdea(id),
-        api.getIdeaComments(id)
-      ]);
-      
+      const ideaResponse = await api.getIdea(id);
       setIdea(ideaResponse.data);
-      setComments(commentsResponse.data);
+      
+      // Initialize with some default canvas objects for demonstration
+      setCanvasObjects([
+        {
+          id: 'demo-rect-1',
+          type: 'rectangle',
+          x: 100,
+          y: 100,
+          width: 150,
+          height: 100,
+          fill: '#3b82f6',
+          stroke: '#1e40af',
+          strokeWidth: 2,
+          rotation: 0
+        },
+        {
+          id: 'demo-text-1',
+          type: 'text',
+          x: 120,
+          y: 140,
+          text: ideaResponse.data.title,
+          fontSize: 18,
+          fill: '#ffffff',
+          stroke: 'transparent',
+          strokeWidth: 0,
+          rotation: 0
+        },
+        {
+          id: 'demo-circle-1',
+          type: 'circle',
+          x: 350,
+          y: 150,
+          radius: 60,
+          fill: '#10b981',
+          stroke: '#059669',
+          strokeWidth: 2,
+          rotation: 0
+        },
+        {
+          id: 'demo-text-2',
+          type: 'text',
+          x: 320,
+          y: 145,
+          text: 'Idea',
+          fontSize: 16,
+          fill: '#ffffff',
+          stroke: 'transparent',
+          strokeWidth: 0,
+          rotation: 0
+        }
+      ]);
     } catch (err) {
       setError('Failed to load idea details');
       console.error('Error fetching idea details:', err);
@@ -52,9 +122,10 @@ export const IdeaDetailPage: React.FC = () => {
   };
 
   const handleStar = async () => {
-    if (!idea) return;
+    if (!idea || !isAuthenticated) return;
     
     try {
+      setIsStarring(true);
       await api.starIdea(idea.id);
       setIdea(prev => prev ? {
         ...prev,
@@ -63,36 +134,40 @@ export const IdeaDetailPage: React.FC = () => {
       } : null);
     } catch (error) {
       console.error('Error starring idea:', error);
+    } finally {
+      setIsStarring(false);
     }
   };
 
   const handleFork = async () => {
-    if (!idea) return;
+    if (!idea || !isAuthenticated) return;
     
     try {
-      await api.forkIdea(idea.id);
-      setIdea(prev => prev ? {
-        ...prev,
-        forks: prev.forks + 1
-      } : null);
+      setIsForking(true);
+      const response = await api.forkIdea(idea.id);
+      
+      // Navigate to the forked idea
+      navigate(`/ideas/${response.data.id}`);
     } catch (error) {
       console.error('Error forking idea:', error);
+    } finally {
+      setIsForking(false);
     }
   };
 
-  const handleComment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newComment.trim() || !idea) return;
-
+  const handleShare = async () => {
+    if (!idea) return;
+    
     try {
-      setCommentLoading(true);
-      const response = await api.createComment(idea.id, newComment.trim());
-      setComments(prev => [response.data, ...prev]);
-      setNewComment('');
+      await navigator.share({
+        title: idea.title,
+        text: idea.description,
+        url: window.location.href,
+      });
     } catch (error) {
-      console.error('Error creating comment:', error);
-    } finally {
-      setCommentLoading(false);
+      // Fallback to clipboard
+      navigator.clipboard.writeText(window.location.href);
+      // You could show a toast notification here
     }
   };
 
@@ -104,9 +179,15 @@ export const IdeaDetailPage: React.FC = () => {
     });
   };
 
+  const handleCanvasObjectsChange = (objects: CanvasObject[]) => {
+    setCanvasObjects(objects);
+    // Here you could save the canvas state to localStorage or a backend
+    // localStorage.setItem(`canvas-${id}-${user?.id}`, JSON.stringify(objects));
+  };
+
   if (loading) {
     return (
-      <Layout>
+      <Layout showSidebar={false}>
         <div className="min-h-screen flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
@@ -116,7 +197,7 @@ export const IdeaDetailPage: React.FC = () => {
 
   if (error || !idea) {
     return (
-      <Layout>
+      <Layout showSidebar={false}>
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
@@ -135,152 +216,152 @@ export const IdeaDetailPage: React.FC = () => {
   }
 
   return (
-    <Layout>
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* Idea Header */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-                <User className="w-5 h-5 text-white" />
+    <Layout showSidebar={false}>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        {/* Header */}
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between py-4">
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={() => navigate(-1)}
+                  className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+                
+                <div className="flex items-center space-x-3">
+                  <Link to={`/profile/${idea.author.username}`}>
+                    <img
+                      src={idea.author.avatar || `https://ui-avatars.com/api/?name=${idea.author.fullName}&background=random`}
+                      alt={idea.author.fullName}
+                      className="w-10 h-10 rounded-full object-cover"
+                    />
+                  </Link>
+                  <div>
+                    <Link
+                      to={`/profile/${idea.author.username}`}
+                      className="text-sm font-medium text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400"
+                    >
+                      {idea.author.fullName}
+                    </Link>
+                    <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
+                      <Calendar className="w-3 h-3" />
+                      <span>{formatDate(idea.createdAt)}</span>
+                      <span>•</span>
+                      <div className="flex items-center space-x-1">
+                        {idea.visibility === 'public' ? (
+                          <Globe className="w-3 h-3" />
+                        ) : (
+                          <Lock className="w-3 h-3" />
+                        )}
+                        <span className="capitalize">{idea.visibility}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div>
-                <h3 className="font-medium text-gray-900 dark:text-white">
-                  {idea.author.fullName || idea.author.username}
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  @{idea.author.username}
-                </p>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={handleShare}
+                  className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  title="Share"
+                >
+                  <Share2 className="w-5 h-5" />
+                </button>
+                
+                {isAuthenticated && (
+                  <button
+                    className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    title="Bookmark"
+                  >
+                    <Bookmark className="w-5 h-5" />
+                  </button>
+                )}
+                
+                <button
+                  className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  title="More options"
+                >
+                  <MoreHorizontal className="w-5 h-5" />
+                </button>
               </div>
             </div>
-            <div className="flex items-center space-x-2">
-              <button className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                <Share2 className="w-5 h-5" />
-              </button>
-              <button className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                <Bookmark className="w-5 h-5" />
-              </button>
-              <button className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                <MoreHorizontal className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
 
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-            {idea.title}
-          </h1>
+            {/* Idea Info */}
+            <div className="pb-6">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">
+                {idea.title}
+              </h1>
+              
+              <p className="text-gray-600 dark:text-gray-300 mb-4 leading-relaxed">
+                {idea.description}
+              </p>
 
-          <p className="text-gray-600 dark:text-gray-300 mb-6 leading-relaxed">
-            {idea.description}
-          </p>
+              {/* Tags */}
+              <div className="flex flex-wrap gap-2 mb-4">
+                {idea.tags.map((tag) => (
+                  <Link
+                    key={tag}
+                    to={`/search?tag=${encodeURIComponent(tag)}`}
+                    className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/30 transition-colors"
+                  >
+                    <Tag className="w-3 h-3 mr-1" />
+                    {tag}
+                  </Link>
+                ))}
+              </div>
 
-          {/* Idea Meta */}
-          <div className="flex flex-wrap items-center gap-4 mb-6">
-            <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-              <Calendar className="w-4 h-4 mr-1" />
-              {formatDate(idea.createdAt)}
-            </div>
-            <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-              <Tag className="w-4 h-4 mr-1" />
-              {idea.category}
-            </div>
-            <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-              <Eye className="w-4 h-4 mr-1" />
-              {idea.stars + idea.forks} interactions
-            </div>
-          </div>
+              {/* Action Buttons */}
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={handleStar}
+                  disabled={isStarring || !isAuthenticated}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                    idea.isStarred
+                      ? 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  } ${!isAuthenticated ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <Star className={`w-4 h-4 ${idea.isStarred ? 'fill-current' : ''}`} />
+                  <span>{isStarring ? 'Starring...' : idea.stars}</span>
+                </button>
 
-          {/* Action Buttons */}
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={handleStar}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                idea.isStarred
-                  ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
-                  : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
-            >
-              <Star className={`w-4 h-4 ${idea.isStarred ? 'fill-current' : ''}`} />
-              <span>{idea.stars}</span>
-            </button>
+                <button
+                  onClick={handleFork}
+                  disabled={isForking || !isAuthenticated}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors ${
+                    !isAuthenticated ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  <GitFork className="w-4 h-4" />
+                  <span>{isForking ? 'Forking...' : idea.forks}</span>
+                </button>
 
-            <button
-              onClick={handleFork}
-              className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-            >
-              <GitFork className="w-4 h-4" />
-              <span>{idea.forks}</span>
-            </button>
+                <div className="flex items-center space-x-2 text-gray-500 dark:text-gray-400">
+                  <Eye className="w-4 h-4" />
+                  <span>{idea.stars + idea.forks} views</span>
+                </div>
 
-            <div className="flex items-center space-x-2 text-gray-500 dark:text-gray-400">
-              <MessageCircle className="w-4 h-4" />
-              <span>{comments.length} comments</span>
+                {idea.collaborators.length > 0 && (
+                  <div className="flex items-center space-x-2 text-gray-500 dark:text-gray-400">
+                    <Users className="w-4 h-4" />
+                    <span>{idea.collaborators.length} collaborators</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Comments Section */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
-            Comments ({comments.length})
-          </h2>
-
-          {/* Add Comment Form */}
-          <form onSubmit={handleComment} className="mb-6">
-            <div className="flex space-x-3">
-              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                <User className="w-4 h-4 text-white" />
-              </div>
-              <div className="flex-1">
-                <textarea
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  placeholder="Add a comment..."
-                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows={3}
-                />
-                <div className="flex justify-end mt-2">
-                  <button
-                    type="submit"
-                    disabled={!newComment.trim() || commentLoading}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {commentLoading ? 'Posting...' : 'Post Comment'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </form>
-
-          {/* Comments List */}
-          <div className="space-y-4">
-            {comments.map((comment) => (
-              <div key={comment.id} className="flex space-x-3">
-                <div className="w-8 h-8 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center">
-                  <User className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2 mb-1">
-                    <span className="font-medium text-gray-900 dark:text-white">
-                      {comment.author.fullName || comment.author.username}
-                    </span>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                      {formatDate(comment.createdAt)}
-                    </span>
-                  </div>
-                  <p className="text-gray-700 dark:text-gray-300">
-                    {comment.content}
-                  </p>
-                </div>
-              </div>
-            ))}
-            
-            {comments.length === 0 && (
-              <p className="text-center text-gray-500 dark:text-gray-400 py-8">
-                No comments yet. Be the first to comment!
-              </p>
-            )}
-          </div>
+        {/* Canvas */}
+        <div className="flex-1">
+          <CanvasEditor
+            initialObjects={canvasObjects}
+            readOnly={false}
+            onObjectsChange={handleCanvasObjectsChange}
+          />
         </div>
       </div>
     </Layout>

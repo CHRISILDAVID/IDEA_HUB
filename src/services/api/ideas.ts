@@ -233,6 +233,14 @@ export class IdeasService {
 
         if (error) throw error;
 
+        // Update idea star count
+        const { error: updateError } = await supabase
+          .from('ideas')
+          .update({ stars: supabase.sql`stars - 1` } as any)
+          .eq('id', id);
+
+        if (updateError) throw updateError;
+
         return {
           data: undefined,
           message: 'Idea unstarred',
@@ -248,6 +256,14 @@ export class IdeasService {
           } as any);
 
         if (error) throw error;
+
+        // Update idea star count
+        const { error: updateError } = await supabase
+          .from('ideas')
+          .update({ stars: supabase.sql`stars + 1` } as any)
+          .eq('id', id);
+
+        if (updateError) throw updateError;
 
         return {
           data: undefined,
@@ -303,10 +319,12 @@ export class IdeasService {
       if (error) throw error;
 
       // Update fork count
-      await supabase
+      const { error: updateError } = await supabase
         .from('ideas')
-        .update({ forks: originalIdea.forks + 1 } as any)
+        .update({ forks: supabase.sql`forks + 1` } as any)
         .eq('id', id);
+
+      if (updateError) throw updateError;
 
       const idea = transformDbIdea(data as any);
 

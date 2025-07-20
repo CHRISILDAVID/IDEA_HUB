@@ -94,6 +94,15 @@
   @apply bg-gray-400 dark:bg-gray-500;
 }
 
+/* Canvas styles */
+.konvajs-content {
+  background-color: #ffffff;
+}
+
+.dark .konvajs-content {
+  background-color: #111827;
+}
+
 /* Focus styles */
 .focus-visible {
   @apply outline-none ring-2 ring-blue-500 ring-offset-2 ring-offset-white dark:ring-offset-gray-900;
