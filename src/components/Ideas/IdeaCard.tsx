@@ -1,9 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Star, GitFork, MessageCircle, Clock, Eye } from 'lucide-react';
+import { MessageCircle, Clock, Eye, GitFork } from 'lucide-react';
 import { Idea } from '../../types';
-import { api } from '../../services/api';
 import { useAuthGuard } from '../../hooks/useAuthGuard';
+import { StarButton } from './StarButton';
+import { ForkButton } from './ForkButton';
 
 interface IdeaCardProps {
   idea: Idea;
@@ -12,34 +13,6 @@ interface IdeaCardProps {
 
 export const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onUpdate }) => {
   const { checkAuthForAction } = useAuthGuard();
-
-  const handleStar = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    checkAuthForAction(async () => {
-      try {
-        await api.starIdea(idea.id);
-        if (onUpdate) {
-          onUpdate({ ...idea, isStarred: !idea.isStarred, stars: idea.stars + (idea.isStarred ? -1 : 1) });
-        }
-      } catch (error) {
-        console.error('Error starring idea:', error);
-      }
-    });
-  };
-
-  const handleFork = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    checkAuthForAction(async () => {
-      try {
-        await api.forkIdea(idea.id);
-        if (onUpdate) {
-          onUpdate({ ...idea, forks: idea.forks + 1 });
-        }
-      } catch (error) {
-        console.error('Error forking idea:', error);
-      }
-    });
-  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -146,25 +119,19 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onUpdate }) => {
         {/* Actions */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <button
-              onClick={handleStar}
-              className={`flex items-center space-x-1 px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                idea.isStarred
-                  ? 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
-            >
-              <Star className={`w-4 h-4 ${idea.isStarred ? 'fill-current' : ''}`} />
-              <span>{idea.stars}</span>
-            </button>
+            {/* Use our new Star Button component */}
+            <StarButton 
+              ideaId={idea.id}
+              initialStarCount={idea.stars}
+              isInitiallyStarred={idea.isStarred}
+              className="px-3 py-1 rounded-lg text-sm font-medium transition-colors"
+            />
             
-            <button
-              onClick={handleFork}
+            {/* Use our new Fork Button component */}
+            <ForkButton 
+              idea={idea}
               className="flex items-center space-x-1 px-3 py-1 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            >
-              <GitFork className="w-4 h-4" />
-              <span>{idea.forks}</span>
-            </button>
+            />
             
             <Link
               to={`/ideas/${idea.id}#comments`}

@@ -1,6 +1,6 @@
 import { supabase, handleSupabaseError } from '../../lib/supabase';
 import { Idea, SearchFilters, ApiResponse } from '../../types';
-import { transformDbIdea, DbIdea, DbUser } from './transformers';
+import { transformDbIdea } from './transformers';
 import { AuthService } from './auth';
 
 export class IdeasService {
@@ -208,69 +208,21 @@ export class IdeasService {
   }
 
   /**
-   * Star or unstar an idea
+   * Star or unstar an idea using the toggle_star RPC function
    */
   static async starIdea(id: string): Promise<ApiResponse<void>> {
     try {
-      const userId = await AuthService.getCurrentUserId();
-      if (!userId) throw new Error('User not authenticated');
+      // Use the toggle_star RPC function for atomic operations
+      const { data, error } = await supabase
+        .rpc('toggle_star', { idea_id_to_toggle: id });
 
-      // Check if already starred
-      const { data: existingStar } = await supabase
-        .from('stars')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('idea_id', id)
-        .single();
+      if (error) throw error;
 
-      if (existingStar) {
-        // Unstar
-        const { error } = await supabase
-          .from('stars')
-          .delete()
-          .eq('user_id', userId)
-          .eq('idea_id', id);
-
-        if (error) throw error;
-
-        // Update idea star count
-        const { error: updateError } = await supabase
-          .from('ideas')
-          .update({ stars: supabase.sql`stars - 1` } as any)
-          .eq('id', id);
-
-        if (updateError) throw updateError;
-
-        return {
-          data: undefined,
-          message: 'Idea unstarred',
-          success: true,
-        };
-      } else {
-        // Star
-        const { error } = await supabase
-          .from('stars')
-          .insert({
-            user_id: userId,
-            idea_id: id,
-          } as any);
-
-        if (error) throw error;
-
-        // Update idea star count
-        const { error: updateError } = await supabase
-          .from('ideas')
-          .update({ stars: supabase.sql`stars + 1` } as any)
-          .eq('id', id);
-
-        if (updateError) throw updateError;
-
-        return {
-          data: undefined,
-          message: 'Idea starred',
-          success: true,
-        };
-      }
+      return {
+        data: undefined,
+        message: data.message || 'Star status updated',
+        success: data.success,
+      };
     } catch (error) {
       handleSupabaseError(error);
       throw error;
@@ -278,53 +230,31 @@ export class IdeasService {
   }
 
   /**
-   * Fork an idea
+   * Fork an idea using the fork_idea RPC function
    */
-  static async forkIdea(id: string): Promise<ApiResponse<Idea>> {
+  static async forkIdea(id: string, newTitle?: string, newDescription?: string): Promise<ApiResponse<Idea>> {
     try {
-      const userId = await AuthService.getCurrentUserId();
-      if (!userId) throw new Error('User not authenticated');
+      // Use the fork_idea RPC function for atomic operations
+      const { data: newIdeaId, error } = await supabase
+        .rpc('fork_idea', { 
+          parent_idea_id: id,
+          new_title: newTitle,
+          new_description: newDescription
+        });
 
-      // Get original idea
-      const { data: originalIdea, error: fetchError } = await supabase
+      if (error) throw error;
+
+      // Fetch the newly created idea with author details
+      const { data, error: fetchError } = await supabase
         .from('ideas')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      // Create fork
-      const { data, error } = await supabase
-        .from('ideas')
-        .insert({
-          title: `${originalIdea.title} (Fork)`,
-          description: originalIdea.description,
-          content: originalIdea.content,
-          author_id: userId,
-          tags: originalIdea.tags,
-          category: originalIdea.category,
-          license: originalIdea.license,
-          visibility: 'public',
-          language: originalIdea.language,
-          is_fork: true,
-          forked_from: id,
-        } as any)
         .select(`
           *,
           author:users(*)
         `)
+        .eq('id', newIdeaId)
         .single();
 
-      if (error) throw error;
-
-      // Update fork count
-      const { error: updateError } = await supabase
-        .from('ideas')
-        .update({ forks: supabase.sql`forks + 1` } as any)
-        .eq('id', id);
-
-      if (updateError) throw updateError;
+      if (fetchError) throw fetchError;
 
       const idea = transformDbIdea(data as any);
 

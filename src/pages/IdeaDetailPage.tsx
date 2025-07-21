@@ -3,10 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout/Layout';
 import { CanvasEditor } from '../components/Canvas/CanvasEditor';
 import { 
-  Star, 
-  GitFork, 
   Eye, 
-  User,
   Calendar,
   Tag,
   Share2,
@@ -17,6 +14,8 @@ import {
   Globe,
   Lock
 } from 'lucide-react';
+import { StarButton } from '../components/Ideas/StarButton';
+import { ForkButton } from '../components/Ideas/ForkButton';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Idea } from '../types';
@@ -41,13 +40,11 @@ interface CanvasObject {
 export const IdeaDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [idea, setIdea] = useState<Idea | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [canvasObjects, setCanvasObjects] = useState<CanvasObject[]>([]);
-  const [isStarring, setIsStarring] = useState(false);
-  const [isForking, setIsForking] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -121,39 +118,9 @@ export const IdeaDetailPage: React.FC = () => {
     }
   };
 
-  const handleStar = async () => {
-    if (!idea || !isAuthenticated) return;
-    
-    try {
-      setIsStarring(true);
-      await api.starIdea(idea.id);
-      setIdea(prev => prev ? {
-        ...prev,
-        isStarred: !prev.isStarred,
-        stars: prev.stars + (prev.isStarred ? -1 : 1)
-      } : null);
-    } catch (error) {
-      console.error('Error starring idea:', error);
-    } finally {
-      setIsStarring(false);
-    }
-  };
+  // No longer need handleStar - using StarButton component instead
 
-  const handleFork = async () => {
-    if (!idea || !isAuthenticated) return;
-    
-    try {
-      setIsForking(true);
-      const response = await api.forkIdea(idea.id);
-      
-      // Navigate to the forked idea
-      navigate(`/ideas/${response.data.id}`);
-    } catch (error) {
-      console.error('Error forking idea:', error);
-    } finally {
-      setIsForking(false);
-    }
-  };
+  // No longer need handleFork - using ForkButton component instead
 
   const handleShare = async () => {
     if (!idea) return;
@@ -315,29 +282,17 @@ export const IdeaDetailPage: React.FC = () => {
 
               {/* Action Buttons */}
               <div className="flex items-center space-x-4">
-                <button
-                  onClick={handleStar}
-                  disabled={isStarring || !isAuthenticated}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                    idea.isStarred
-                      ? 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                  } ${!isAuthenticated ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  <Star className={`w-4 h-4 ${idea.isStarred ? 'fill-current' : ''}`} />
-                  <span>{isStarring ? 'Starring...' : idea.stars}</span>
-                </button>
-
-                <button
-                  onClick={handleFork}
-                  disabled={isForking || !isAuthenticated}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors ${
-                    !isAuthenticated ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                >
-                  <GitFork className="w-4 h-4" />
-                  <span>{isForking ? 'Forking...' : idea.forks}</span>
-                </button>
+                <StarButton 
+                  ideaId={idea.id}
+                  initialStarCount={idea.stars}
+                  isInitiallyStarred={idea.isStarred}
+                  className="px-4 py-2 rounded-lg font-medium transition-colors"
+                />
+                
+                <ForkButton 
+                  idea={idea}
+                  className="px-4 py-2 rounded-lg font-medium transition-colors"
+                />
 
                 <div className="flex items-center space-x-2 text-gray-500 dark:text-gray-400">
                   <Eye className="w-4 h-4" />

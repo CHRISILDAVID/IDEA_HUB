@@ -18,6 +18,7 @@ import { IdeaDetailPage } from './pages/IdeaDetailPage';
 import { LoginForm } from './components/Auth/LoginForm';
 import { RegisterForm } from './components/Auth/RegisterForm';
 import { AuthCallback } from './pages/AuthCallback';
+import { AboutPage } from './pages/AboutPage';
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
                 <Route path="/login" element={<LoginForm />} />
                 <Route path="/register" element={<RegisterForm />} />
                 <Route path="/auth/callback" element={<AuthCallback />} />
+                <Route path="/about" element={<AboutPage />} />
                 
                 {/* Protected Routes - Require Authentication */}
                 <Route path="/ideas/:id" element={
