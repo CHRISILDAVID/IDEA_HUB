@@ -18,7 +18,7 @@ import { useAuth } from '../../contexts/AuthContext';
 
 interface CanvasObject {
   id: string;
-  type: 'rectangle' | 'circle' | 'text' | 'line';
+  type: 'rectangle' | 'circle' | 'text' | 'line' | 'diamond';
   x: number;
   y: number;
   width?: number;
@@ -47,7 +47,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
   const { isAuthenticated } = useAuth();
   const [objects, setObjects] = useState<CanvasObject[]>(initialObjects);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [tool, setTool] = useState<'select' | 'rectangle' | 'circle' | 'text' | 'line'>('select');
+  const [tool, setTool] = useState<'select' | 'rectangle' | 'circle' | 'text' | 'line' | 'diamond'>('select');
   const [isDrawing, setIsDrawing] = useState(false);
   const [scale, setScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });

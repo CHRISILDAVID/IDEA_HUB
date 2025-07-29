@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   FileText, 
   Layout, 
@@ -22,24 +22,14 @@ import {
   Globe,
   Lock,
   Users,
-  Tag,
-  Copy,
-  ExternalLink,
-  MoreHorizontal,
-  Link as LinkIcon,
-  MessageCircle,
-  List,
-  ZoomIn,
-  ZoomOut,
-  RotateCcw
+  Tag
 } from 'lucide-react';
 import { CanvasEditor } from '../components/Canvas/CanvasEditor';
 import { DocumentEditor } from '../components/Canvas/DocumentEditor';
 import { CanvasToolbar } from '../components/Canvas/CanvasToolbar';
 import { DocumentToolbar } from '../components/Canvas/DocumentToolbar';
 import { ViewToggle } from '../components/Canvas/ViewToggle';
-import { StarButton } from '../components/Ideas/StarButton';
-import { ForkButton } from '../components/Ideas/ForkButton';
+import { IdeaSetupModal } from '../components/Canvas/IdeaSetupModal';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Idea } from '../types';
@@ -63,10 +53,11 @@ interface CanvasObject {
 
 type ViewMode = 'document' | 'both' | 'canvas';
 
-export const IdeaDetailPage: React.FC = () => {
+export const IdeaCanvasPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const location = useLocation();
+  const { user, isAuthenticated } = useAuth();
   
   const [idea, setIdea] = useState<Idea | null>(null);
   const [loading, setLoading] = useState(true);
@@ -74,12 +65,40 @@ export const IdeaDetailPage: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('both');
   const [canvasObjects, setCanvasObjects] = useState<CanvasObject[]>([]);
   const [documentContent, setDocumentContent] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [showSetupModal, setShowSetupModal] = useState(false);
+  const [isNewIdea, setIsNewIdea] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [autoSave, setAutoSave] = useState(true);
+  
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    if (id) {
+    if (id && id !== 'new') {
       fetchIdeaDetails();
+    } else {
+      setIsNewIdea(true);
+      setShowSetupModal(true);
+      setLoading(false);
     }
   }, [id]);
+
+  useEffect(() => {
+    if (autoSave && (documentContent || canvasObjects.length > 0)) {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+      autoSaveTimeoutRef.current = setTimeout(() => {
+        saveIdea();
+      }, 2000);
+    }
+
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, [documentContent, canvasObjects, autoSave]);
 
   const fetchIdeaDetails = async () => {
     if (!id) return;
@@ -105,19 +124,85 @@ export const IdeaDetailPage: React.FC = () => {
     }
   };
 
-  const handleFork = async () => {
-    if (!isAuthenticated) {
-      navigate('/login');
-      return;
-    }
-
+  const saveIdea = async () => {
+    if (!isAuthenticated) return;
+    
     try {
-      const response = await api.forkIdea(id!);
-      // Navigate to the new forked idea in edit mode
-      navigate(`/ideas/${response.data.id}/edit`);
+      setSaving(true);
+      
+      if (isNewIdea) {
+        // Create new idea
+        const newIdeaData = {
+          title: idea?.title || 'Untitled Idea',
+          description: idea?.description || '',
+          content: documentContent,
+          canvasData: JSON.stringify(canvasObjects),
+          category: idea?.category || 'general',
+          tags: idea?.tags || [],
+          visibility: idea?.visibility || 'public',
+          language: idea?.language || 'en',
+          status: 'published'
+        };
+        
+        const response = await api.createIdea(newIdeaData);
+        setIdea(response.data);
+        setIsNewIdea(false);
+        navigate(`/ideas/${response.data.id}`);
+      } else if (idea) {
+        // Update existing idea
+        const updatedIdeaData = {
+          ...idea,
+          content: documentContent,
+          canvasData: JSON.stringify(canvasObjects)
+        };
+        
+        await api.updateIdea(idea.id, updatedIdeaData);
+      }
     } catch (err) {
-      console.error('Error forking idea:', err);
+      console.error('Error saving idea:', err);
+    } finally {
+      setSaving(false);
     }
+  };
+
+  const handleCanvasObjectsChange = (objects: CanvasObject[]) => {
+    setCanvasObjects(objects);
+  };
+
+  const handleDocumentContentChange = (content: string) => {
+    setDocumentContent(content);
+  };
+
+  const handleSetupComplete = (setupData: {
+    title: string;
+    description: string;
+    visibility: 'public' | 'private';
+    tags: string[];
+    category: string;
+  }) => {
+    setIdea({
+      id: 'temp',
+      title: setupData.title,
+      description: setupData.description,
+      content: '',
+      author: user!,
+      tags: setupData.tags,
+      category: setupData.category,
+      license: 'MIT',
+      version: '1.0.0',
+      stars: 0,
+      forks: 0,
+      isStarred: false,
+      isFork: false,
+      visibility: setupData.visibility,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      collaborators: [],
+      comments: [],
+      issues: [],
+      status: 'draft'
+    });
+    setShowSetupModal(false);
   };
 
   const handleShare = async () => {
@@ -142,12 +227,12 @@ export const IdeaDetailPage: React.FC = () => {
     );
   }
 
-  if (error || !idea) {
+  if (error) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-            {error || 'Idea not found'}
+            {error}
           </h2>
           <button
             onClick={() => navigate('/')}
@@ -162,7 +247,7 @@ export const IdeaDetailPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header - Exactly like eraser.io */}
+      {/* Header */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center space-x-4">
@@ -178,17 +263,21 @@ export const IdeaDetailPage: React.FC = () => {
                 <FileText className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {idea.title}
-                </h1>
+                <input
+                  type="text"
+                  value={idea?.title || 'Untitled File'}
+                  onChange={(e) => setIdea(prev => prev ? { ...prev, title: e.target.value } : null)}
+                  className="text-lg font-semibold text-gray-900 dark:text-white bg-transparent border-none outline-none focus:ring-0"
+                  placeholder="Untitled File"
+                />
                 <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-                  {idea.visibility === 'public' ? (
+                  {idea?.visibility === 'public' ? (
                     <Globe className="w-3 h-3" />
                   ) : (
                     <Lock className="w-3 h-3" />
                   )}
-                  <span className="capitalize">{idea.visibility}</span>
-                  {idea.tags.length > 0 && (
+                  <span className="capitalize">{idea?.visibility || 'public'}</span>
+                  {idea?.tags.length > 0 && (
                     <>
                       <span>•</span>
                       <span>{idea.tags.length} tags</span>
@@ -207,10 +296,6 @@ export const IdeaDetailPage: React.FC = () => {
             
             <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-2" />
             
-            <button className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
-              Ctrl K
-            </button>
-            
             <button
               onClick={handleShare}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
@@ -219,95 +304,50 @@ export const IdeaDetailPage: React.FC = () => {
             </button>
             
             <button className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-              <LinkIcon className="w-5 h-5" />
-            </button>
-            
-            <button className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-              <MessageCircle className="w-5 h-5" />
-            </button>
-            
-            <button className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-              <List className="w-5 h-5" />
-            </button>
-            
-            <button className="flex items-center space-x-1 px-2 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
-              <span>100%</span>
-              <ChevronDown className="w-4 h-4" />
+              <Settings className="w-5 h-5" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* Main Content - Dual Panel Layout */}
+      {/* Main Content */}
       <div className="flex h-[calc(100vh-64px)]">
         {/* Document Panel */}
         {(viewMode === 'document' || viewMode === 'both') && (
-          <div className={`${viewMode === 'both' ? 'w-1/2' : 'w-full'} flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 relative`}>
-            {/* Document Toolbar */}
+          <div className={`${viewMode === 'both' ? 'w-1/2' : 'w-full'} flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700`}>
             <DocumentToolbar
-              onContentChange={() => {}}
-              onSave={() => {}}
-              saving={false}
+              onContentChange={handleDocumentContentChange}
+              onSave={saveIdea}
+              saving={saving}
             />
-            
-            {/* Document Content */}
-            <div className="flex-1 p-6">
-              <div className="prose prose-gray dark:prose-invert max-w-none">
-                <pre className="whitespace-pre-wrap text-gray-900 dark:text-white font-mono text-sm leading-relaxed">
-                  {documentContent || 'Type your notes or document here — style with markdown or shortcuts (Ctrl/)'}
-                </pre>
-              </div>
-            </div>
-
-            {/* Floating AI Button */}
-            <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10">
-              <button className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg shadow-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200">
-                <span className="text-lg">✨</span>
-                <span className="font-medium">Generate Outline</span>
-                <span className="text-xs opacity-75">Ctrl ⇧ J</span>
-              </button>
-            </div>
+            <DocumentEditor
+              content={documentContent}
+              onChange={handleDocumentContentChange}
+              readOnly={!isAuthenticated}
+            />
           </div>
         )}
 
         {/* Canvas Panel */}
         {(viewMode === 'canvas' || viewMode === 'both') && (
-          <div className={`${viewMode === 'both' ? 'w-1/2' : 'w-full'} flex flex-col bg-gray-50 dark:bg-gray-900 relative`}>
-            {/* Canvas Toolbar */}
+          <div className={`${viewMode === 'both' ? 'w-1/2' : 'w-full'} flex flex-col bg-gray-50 dark:bg-gray-900`}>
             <CanvasToolbar />
-            
-            {/* Canvas Content */}
-            <div className="flex-1 relative">
-              <CanvasEditor
-                initialObjects={canvasObjects}
-                readOnly={true}
-                onObjectsChange={() => {}}
-              />
-            </div>
-
-            {/* Floating AI Button */}
-            <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10">
-              <button className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg shadow-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200">
-                <span className="text-lg">✨</span>
-                <span className="font-medium">Generate AI Diagram</span>
-                <span className="text-xs opacity-75">Ctrl J</span>
-              </button>
-            </div>
+            <CanvasEditor
+              initialObjects={canvasObjects}
+              readOnly={!isAuthenticated}
+              onObjectsChange={handleCanvasObjectsChange}
+            />
           </div>
         )}
       </div>
 
-      {/* Floating Extend Button - Prominent like in the image */}
-      <div className="fixed bottom-6 right-6 z-20">
-        <button
-          onClick={handleFork}
-          className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg shadow-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200 font-medium"
-        >
-          <Copy className="w-5 h-5" />
-          <span>Extend This Idea</span>
-          <ExternalLink className="w-4 h-4" />
-        </button>
-      </div>
+      {/* Setup Modal for New Ideas */}
+      {showSetupModal && (
+        <IdeaSetupModal
+          onComplete={handleSetupComplete}
+          onCancel={() => navigate('/')}
+        />
+      )}
     </div>
   );
-};
+}; 

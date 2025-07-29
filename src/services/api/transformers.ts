@@ -32,6 +32,7 @@ export const transformDbIdea = (dbIdea: DbIdea & { author: DbUser; is_starred?: 
   title: dbIdea.title,
   description: dbIdea.description,
   content: dbIdea.content,
+  canvasData: dbIdea.canvas_data,
   author: transformDbUser(dbIdea.author),
   tags: dbIdea.tags,
   category: dbIdea.category,

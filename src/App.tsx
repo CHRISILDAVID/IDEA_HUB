@@ -15,6 +15,7 @@ import { ForksPage } from './pages/ForksPage';
 import { FollowingPage } from './pages/FollowingPage';
 import { NotificationsPage } from './pages/NotificationsPage';
 import { IdeaDetailPage } from './pages/IdeaDetailPage';
+import { IdeaCanvasPage } from './pages/IdeaCanvasPage';
 import { LoginForm } from './components/Auth/LoginForm';
 import { RegisterForm } from './components/Auth/RegisterForm';
 import { AuthCallback } from './pages/AuthCallback';
@@ -37,9 +38,15 @@ function App() {
                 <Route path="/about" element={<AboutPage />} />
                 
                 {/* Protected Routes - Require Authentication */}
-                <Route path="/ideas/:id" element={
+                <Route path="/ideas/:id" element={<IdeaDetailPage />} />
+                <Route path="/ideas/:id/edit" element={
                   <ProtectedRoute>
-                    <IdeaDetailPage />
+                    <IdeaCanvasPage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/ideas/new" element={
+                  <ProtectedRoute>
+                    <IdeaCanvasPage />
                   </ProtectedRoute>
                 } />
                 <Route path="/dashboard" element={

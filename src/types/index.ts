@@ -20,6 +20,7 @@ export interface Idea {
   title: string;
   description: string;
   content: string;
+  canvasData?: string;
   author: User;
   tags: string[];
   category: string;
