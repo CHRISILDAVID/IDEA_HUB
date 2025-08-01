@@ -40,6 +40,7 @@ export const supabaseApi = {
   getIdea: IdeasService.getIdea,
   createIdea: IdeasService.createIdea,
   updateIdea: IdeasService.updateIdea,
+  getIdeaCollaborators: IdeasService.getIdeaCollaborators,
   deleteIdea: IdeasService.deleteIdea,
   starIdea: IdeasService.starIdea,
   forkIdea: IdeasService.forkIdea,

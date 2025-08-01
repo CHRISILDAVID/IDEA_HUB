@@ -22,11 +22,20 @@ import {
   Globe,
   Lock,
   Users,
-  Tag
+  Tag,
+  Copy,
+  ExternalLink,
+  Link as LinkIcon,
+  MessageCircle,
+  List,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  GripVertical
 } from 'lucide-react';
 import { CanvasEditor } from '../components/Canvas/CanvasEditor';
 import { DocumentEditor } from '../components/Canvas/DocumentEditor';
-import { CanvasToolbar } from '../components/Canvas/CanvasToolbar';
+import { CanvasToolbar, CanvasTool } from '../components/Canvas/CanvasToolbar';
 import { DocumentToolbar } from '../components/Canvas/DocumentToolbar';
 import { ViewToggle } from '../components/Canvas/ViewToggle';
 import { IdeaSetupModal } from '../components/Canvas/IdeaSetupModal';
@@ -70,8 +79,15 @@ export const IdeaCanvasPage: React.FC = () => {
   const [isNewIdea, setIsNewIdea] = useState(false);
   const [saving, setSaving] = useState(false);
   const [autoSave, setAutoSave] = useState(true);
+  const [activeTool, setActiveTool] = useState<CanvasTool>('select');
+  const [showShareModal, setShowShareModal] = useState(false);
   
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [docPanelWidth, setDocPanelWidth] = useState(() => {
+    const saved = localStorage.getItem('docPanelWidth');
+    return saved ? parseFloat(saved) : 0.4;
+  });
+  const dragging = useRef(false);
 
   useEffect(() => {
     if (id && id !== 'new') {
@@ -99,6 +115,36 @@ export const IdeaCanvasPage: React.FC = () => {
       }
     };
   }, [documentContent, canvasObjects, autoSave]);
+
+  // Handle drag events for resizing
+  const handleDragStart = (e: React.MouseEvent) => {
+    dragging.current = true;
+    document.body.style.cursor = 'col-resize';
+  };
+  const handleDrag = (e: MouseEvent) => {
+    if (!dragging.current) return;
+    const totalWidth = window.innerWidth;
+    let newWidth = e.clientX / totalWidth;
+    newWidth = Math.max(0.2, Math.min(newWidth, 0.8));
+    setDocPanelWidth(newWidth);
+    localStorage.setItem('docPanelWidth', newWidth.toString());
+  };
+  const handleDragEnd = () => {
+    dragging.current = false;
+    document.body.style.cursor = '';
+  };
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => handleDrag(e);
+    const onUp = () => handleDragEnd();
+    if (dragging.current) {
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [dragging.current]);
 
   const fetchIdeaDetails = async () => {
     if (!id) return;
@@ -141,7 +187,7 @@ export const IdeaCanvasPage: React.FC = () => {
           tags: idea?.tags || [],
           visibility: idea?.visibility || 'public',
           language: idea?.language || 'en',
-          status: 'published'
+          status: 'published' as const
         };
         
         const response = await api.createIdea(newIdeaData);
@@ -205,6 +251,20 @@ export const IdeaCanvasPage: React.FC = () => {
     setShowSetupModal(false);
   };
 
+  const handleFork = async () => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+
+    try {
+      const response = await api.forkIdea(id!);
+      navigate(`/ideas/${response.data.id}/edit`);
+    } catch (err) {
+      console.error('Error forking idea:', err);
+    }
+  };
+
   const handleShare = async () => {
     if (!idea) return;
     
@@ -217,6 +277,11 @@ export const IdeaCanvasPage: React.FC = () => {
     } catch (error) {
       navigator.clipboard.writeText(window.location.href);
     }
+  };
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(window.location.href);
+    // You could show a toast notification here
   };
 
   if (loading) {
@@ -247,7 +312,7 @@ export const IdeaCanvasPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
+      {/* Header - Updated with Extend button and combined Share/Link */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center space-x-4">
@@ -277,7 +342,7 @@ export const IdeaCanvasPage: React.FC = () => {
                     <Lock className="w-3 h-3" />
                   )}
                   <span className="capitalize">{idea?.visibility || 'public'}</span>
-                  {idea?.tags.length > 0 && (
+                  {idea?.tags && idea.tags.length > 0 && (
                     <>
                       <span>•</span>
                       <span>{idea.tags.length} tags</span>
@@ -297,10 +362,18 @@ export const IdeaCanvasPage: React.FC = () => {
             <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-2" />
             
             <button
-              onClick={handleShare}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+              onClick={() => setShowShareModal(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center space-x-1"
             >
-              Share
+              <span>Share</span>
+              <LinkIcon className="w-4 h-4" />
+            </button>
+            
+            <button
+              onClick={handleFork}
+              className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-sm font-medium"
+            >
+              Extend This Idea
             </button>
             
             <button className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
@@ -310,36 +383,95 @@ export const IdeaCanvasPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex h-[calc(100vh-64px)]">
+      {/* Main Content - Resizable Panels */}
+      <div className="flex h-[calc(100vh-64px)] relative select-none">
         {/* Document Panel */}
-        {(viewMode === 'document' || viewMode === 'both') && (
-          <div className={`${viewMode === 'both' ? 'w-1/2' : 'w-full'} flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700`}>
-            <DocumentToolbar
-              onContentChange={handleDocumentContentChange}
-              onSave={saveIdea}
-              saving={saving}
-            />
-            <DocumentEditor
-              content={documentContent}
-              onChange={handleDocumentContentChange}
-              readOnly={!isAuthenticated}
-            />
+        <div
+          className="flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 relative"
+          style={{ width: `${docPanelWidth * 100}%`, minWidth: 200, maxWidth: 800 }}
+        >
+          <DocumentToolbar
+            onContentChange={handleDocumentContentChange}
+            onSave={saveIdea}
+            saving={saving}
+          />
+          <DocumentEditor
+            content={documentContent}
+            onChange={handleDocumentContentChange}
+            readOnly={false}
+          />
+          
+          {/* Minimal AI Button */}
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
+            <button className="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-xs font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center space-x-1">
+              <Wand2 className="w-3 h-3" />
+              <span>Generate Outline</span>
+            </button>
           </div>
-        )}
-
+        </div>
+        
+        {/* Draggable Divider */}
+        <div
+          className="w-1 bg-transparent hover:bg-blue-300 dark:hover:bg-blue-600 transition-colors cursor-col-resize relative group"
+          style={{ userSelect: 'none' }}
+          onMouseDown={handleDragStart}
+        >
+          <div className="absolute inset-y-0 left-1/2 transform -translate-x-1/2 w-1 bg-gray-300 dark:bg-gray-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute inset-y-0 left-1/2 transform -translate-x-1/2 w-6 flex items-center justify-center">
+            <GripVertical className="w-4 h-4 text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+        </div>
+        
         {/* Canvas Panel */}
-        {(viewMode === 'canvas' || viewMode === 'both') && (
-          <div className={`${viewMode === 'both' ? 'w-1/2' : 'w-full'} flex flex-col bg-gray-50 dark:bg-gray-900`}>
-            <CanvasToolbar />
-            <CanvasEditor
-              initialObjects={canvasObjects}
-              readOnly={!isAuthenticated}
-              onObjectsChange={handleCanvasObjectsChange}
-            />
+        <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-900 relative">
+          <CanvasToolbar activeTool={activeTool} onToolSelect={setActiveTool} />
+          <CanvasEditor
+            initialObjects={canvasObjects}
+            readOnly={false}
+            onObjectsChange={handleCanvasObjectsChange}
+            activeTool={activeTool}
+          />
+          
+          {/* Minimal AI Button */}
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
+            <button className="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-xs font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center space-x-1">
+              <Wand2 className="w-3 h-3" />
+              <span>Generate AI Diagram</span>
+            </button>
           </div>
-        )}
+        </div>
       </div>
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Share Idea</h2>
+              <button
+                onClick={() => setShowShareModal(false)}
+                className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <span className="text-2xl">×</span>
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <button
+                onClick={copyLink}
+                className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              >
+                Copy Link
+              </button>
+              <button
+                onClick={handleShare}
+                className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors font-medium"
+              >
+                Share to...
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Setup Modal for New Ideas */}
       {showSetupModal && (

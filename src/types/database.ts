@@ -68,6 +68,7 @@ export interface Database {
           title: string
           description: string
           content: string
+          canvas_data: string | null
           author_id: string
           tags: string[]
           category: string
@@ -88,6 +89,7 @@ export interface Database {
           title: string
           description: string
           content: string
+          canvas_data?: string | null
           author_id: string
           tags?: string[]
           category: string
@@ -108,6 +110,7 @@ export interface Database {
           title?: string
           description?: string
           content?: string
+          canvas_data?: string | null
           author_id?: string
           tags?: string[]
           category?: string
@@ -194,6 +197,35 @@ export interface Database {
           follower_id?: string
           following_id?: string
           created_at?: string
+        }
+      }
+      idea_collaborators: {
+        Row: {
+          id: string
+          user_id: string
+          idea_id: string
+          role: 'owner' | 'collaborator'
+          granted_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          idea_id: string
+          role: 'owner' | 'collaborator'
+          granted_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          idea_id?: string
+          role?: 'owner' | 'collaborator'
+          granted_by?: string
+          created_at?: string
+          updated_at?: string
         }
       }
       notifications: {

@@ -58,6 +58,10 @@ export const api = {
     return IdeasService.updateIdea(id, ideaData);
   },
 
+  async getIdeaCollaborators(ideaId: string): Promise<ApiResponse<any[]>> {
+    return IdeasService.getIdeaCollaborators(ideaId);
+  },
+
   async deleteIdea(id: string): Promise<ApiResponse<void>> {
     return IdeasService.deleteIdea(id);
   },

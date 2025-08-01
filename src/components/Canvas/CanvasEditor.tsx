@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Stage, Layer, Rect, Circle, Text, Line, Transformer } from 'react-konva';
+import { Stage, Layer, Rect, Circle, Text, Line, Transformer, Arrow } from 'react-konva';
 import { KonvaEventObject } from 'konva/lib/Node';
 import { v4 as uuidv4 } from 'uuid';
 import { 
@@ -15,10 +15,13 @@ import {
   ZoomOut
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { CanvasTool } from './CanvasToolbar';
+import { CanvasTopBar } from './CanvasTopBar';
+import { PropertiesPanel } from './PropertiesPanel';
 
 interface CanvasObject {
   id: string;
-  type: 'rectangle' | 'circle' | 'text' | 'line' | 'diamond';
+  type: 'rectangle' | 'circle' | 'text' | 'line' | 'diamond' | 'polygon' | 'connector' | 'arrow' | 'frame';
   x: number;
   y: number;
   width?: number;
@@ -26,42 +29,92 @@ interface CanvasObject {
   radius?: number;
   text?: string;
   fontSize?: number;
+  fontFamily?: string;
+  fontWeight?: string;
+  textAlign?: 'left' | 'center' | 'right';
   fill: string;
   stroke: string;
   strokeWidth: number;
+  strokeStyle?: 'solid' | 'dashed' | 'dotted';
+  cornerRadius?: number;
+  opacity: number;
   rotation?: number;
   points?: number[];
+  startArrow?: string;
+  endArrow?: string;
+  connectorType?: 'straight' | 'elbow' | 'curved';
+  effects?: {
+    dropShadow?: {
+      enabled: boolean;
+      x: number;
+      y: number;
+      blur: number;
+      color: string;
+    };
+  };
 }
 
 interface CanvasEditorProps {
   initialObjects?: CanvasObject[];
   readOnly?: boolean;
   onObjectsChange?: (objects: CanvasObject[]) => void;
+  activeTool: CanvasTool;
+  onToolSelect?: (tool: CanvasTool) => void;
 }
 
 export const CanvasEditor: React.FC<CanvasEditorProps> = ({
   initialObjects = [],
   readOnly = false,
-  onObjectsChange
+  onObjectsChange,
+  activeTool,
+  onToolSelect
 }) => {
   const { isAuthenticated } = useAuth();
   const [objects, setObjects] = useState<CanvasObject[]>(initialObjects);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [tool, setTool] = useState<'select' | 'rectangle' | 'circle' | 'text' | 'line' | 'diamond'>('select');
   const [isDrawing, setIsDrawing] = useState(false);
   const [scale, setScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
+  const [history, setHistory] = useState<CanvasObject[][]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [saving, setSaving] = useState(false);
   
   const stageRef = useRef<any>(null);
   const transformerRef = useRef<any>(null);
 
   const canEdit = isAuthenticated && !readOnly;
 
+  // History management
+  const saveToHistory = useCallback((newObjects: CanvasObject[]) => {
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push([...newObjects]);
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+  }, [history, historyIndex]);
+
+  const undo = useCallback(() => {
+    if (historyIndex > 0) {
+      setHistoryIndex(historyIndex - 1);
+      setObjects(history[historyIndex - 1]);
+    }
+  }, [history, historyIndex]);
+
+  const redo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      setHistoryIndex(historyIndex + 1);
+      setObjects(history[historyIndex + 1]);
+    }
+  }, [history, historyIndex]);
+
   useEffect(() => {
     if (onObjectsChange) {
       onObjectsChange(objects);
     }
-  }, [objects, onObjectsChange]);
+    // Save to history when objects change
+    if (objects.length > 0) {
+      saveToHistory(objects);
+    }
+  }, [objects, onObjectsChange, saveToHistory]);
 
   const checkDeselect = useCallback((e: KonvaEventObject<MouseEvent>) => {
     const clickedOnEmpty = e.target === e.target.getStage();
@@ -108,8 +161,36 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
     }
   }, [canEdit, selectedId, objects]);
 
+  const groupSelected = useCallback(() => {
+    // TODO: Implement grouping functionality
+    console.log('Group selected objects');
+  }, []);
+
+  const ungroupSelected = useCallback(() => {
+    // TODO: Implement ungrouping functionality
+    console.log('Ungroup selected objects');
+  }, []);
+
+  const handleSave = useCallback(async () => {
+    setSaving(true);
+    try {
+      // TODO: Implement save functionality
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('Saving canvas...', objects);
+    } catch (error) {
+      console.error('Error saving canvas:', error);
+    } finally {
+      setSaving(false);
+    }
+  }, [objects]);
+
+  const handleShare = useCallback(() => {
+    // TODO: Implement share functionality
+    console.log('Sharing canvas...');
+  }, []);
+
   const handleStageMouseDown = useCallback((e: KonvaEventObject<MouseEvent>) => {
-    if (!canEdit || tool === 'select') return;
+    if (!canEdit || activeTool === 'select') return;
 
     const pos = e.target.getStage()?.getPointerPosition();
     if (!pos) return;
@@ -127,10 +208,23 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
       fill: '#3b82f6',
       stroke: '#1e40af',
       strokeWidth: 2,
-      rotation: 0
+      rotation: 0,
+      opacity: 1
     };
 
-    switch (tool) {
+    switch (activeTool) {
+      case 'frame':
+        addObject({
+          ...baseObject,
+          type: 'rectangle',
+          width: 400,
+          height: 300,
+          fill: 'transparent',
+          stroke: '#6b7280',
+          strokeWidth: 1,
+          strokeStyle: 'dashed'
+        });
+        break;
       case 'rectangle':
         addObject({
           ...baseObject,
@@ -146,14 +240,44 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
           radius: 40
         });
         break;
+      case 'diamond':
+        addObject({
+          ...baseObject,
+          type: 'diamond',
+          width: 80,
+          height: 80
+        });
+        break;
+      case 'polygon':
+        addObject({
+          ...baseObject,
+          type: 'polygon',
+          width: 60,
+          height: 60
+        });
+        break;
       case 'text':
         addObject({
           ...baseObject,
           type: 'text',
           text: 'Double click to edit',
           fontSize: 16,
+          fontFamily: 'Arial',
+          fontWeight: 'normal',
+          textAlign: 'left',
           fill: '#1f2937',
           stroke: 'transparent'
+        });
+        break;
+      case 'connector':
+        addObject({
+          ...baseObject,
+          type: 'connector',
+          points: [0, 0, 100, 0],
+          fill: 'transparent',
+          connectorType: 'straight',
+          startArrow: 'none',
+          endArrow: 'arrow'
         });
         break;
       case 'line':
@@ -164,11 +288,76 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
           fill: 'transparent'
         });
         break;
+      case 'arrow':
+        addObject({
+          ...baseObject,
+          type: 'arrow',
+          points: [0, 0, 100, 0],
+          fill: 'transparent',
+          startArrow: 'none',
+          endArrow: 'arrow'
+        });
+        break;
+      case 'sticky':
+        addObject({
+          ...baseObject,
+          type: 'rectangle',
+          width: 120,
+          height: 80,
+          fill: '#fef3c7',
+          stroke: '#f59e0b',
+          text: 'Sticky Note'
+        });
+        break;
+      case 'image':
+        // Handle image upload
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = (e) => {
+          const file = (e.target as HTMLInputElement).files?.[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              addObject({
+                ...baseObject,
+                type: 'rectangle',
+                width: 150,
+                height: 100,
+                fill: `url(${e.target?.result})`,
+                stroke: '#6b7280'
+              });
+            };
+            reader.readAsDataURL(file);
+          }
+        };
+        input.click();
+        break;
+      case 'comment':
+        addObject({
+          ...baseObject,
+          type: 'rectangle',
+          width: 100,
+          height: 60,
+          fill: '#dbeafe',
+          stroke: '#3b82f6',
+          text: 'Comment'
+        });
+        break;
+      case 'pen':
+        // For pen tool, we'll need to implement freehand drawing
+        // For now, just add a small circle
+        addObject({
+          ...baseObject,
+          type: 'circle',
+          radius: 2,
+          fill: '#1f2937'
+        });
+        break;
     }
 
-    setTool('select');
     setIsDrawing(false);
-  }, [canEdit, tool, addObject, scale, stagePos]);
+  }, [canEdit, activeTool, addObject, scale, stagePos]);
 
   const handleWheel = useCallback((e: KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
@@ -235,6 +424,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
       stroke: obj.stroke,
       strokeWidth: obj.strokeWidth,
       rotation: obj.rotation || 0,
+      opacity: obj.opacity || 1,
       draggable: canEdit,
       onClick: () => handleObjectSelect(obj.id),
       onTap: () => handleObjectSelect(obj.id),
@@ -270,6 +460,8 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
             {...commonProps}
             width={obj.width || 100}
             height={obj.height || 60}
+            cornerRadius={obj.cornerRadius || 0}
+            dash={obj.strokeStyle === 'dashed' ? [10, 5] : obj.strokeStyle === 'dotted' ? [2, 2] : undefined}
           />
         );
       case 'circle':
@@ -285,6 +477,9 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
             {...commonProps}
             text={obj.text || 'Text'}
             fontSize={obj.fontSize || 16}
+            fontFamily={obj.fontFamily || 'Arial'}
+            fontWeight={obj.fontWeight || 'normal'}
+            align={obj.textAlign || 'left'}
             onDblClick={() => {
               if (!canEdit) return;
               const newText = prompt('Enter text:', obj.text || '');
@@ -301,6 +496,31 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
             points={obj.points || [0, 0, 100, 0]}
             lineCap="round"
             lineJoin="round"
+            dash={obj.strokeStyle === 'dashed' ? [10, 5] : obj.strokeStyle === 'dotted' ? [2, 2] : undefined}
+          />
+        );
+      case 'arrow':
+        return (
+          <Arrow
+            {...commonProps}
+            points={obj.points || [0, 0, 100, 0]}
+            pointerLength={obj.endArrow === 'arrow' ? 10 : 0}
+            pointerWidth={obj.endArrow === 'arrow' ? 10 : 0}
+            lineCap="round"
+            lineJoin="round"
+            dash={obj.strokeStyle === 'dashed' ? [10, 5] : obj.strokeStyle === 'dotted' ? [2, 2] : undefined}
+          />
+        );
+      case 'connector':
+        return (
+          <Arrow
+            {...commonProps}
+            points={obj.points || [0, 0, 100, 0]}
+            pointerLength={obj.endArrow === 'arrow' ? 10 : 0}
+            pointerWidth={obj.endArrow === 'arrow' ? 10 : 0}
+            lineCap="round"
+            lineJoin="round"
+            dash={obj.strokeStyle === 'dashed' ? [10, 5] : obj.strokeStyle === 'dotted' ? [2, 2] : undefined}
           />
         );
       default:
@@ -308,172 +528,88 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
     }
   };
 
+  const selectedObject = objects.find(obj => obj.id === selectedId) || null;
+
   return (
     <div className="w-full h-full flex flex-col bg-gray-50 dark:bg-gray-900">
-      {/* Toolbar */}
-      {canEdit && (
-        <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setTool('select')}
-              className={`p-2 rounded-lg transition-colors ${
-                tool === 'select'
-                  ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
-              title="Select"
-            >
-              <MousePointer className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => setTool('rectangle')}
-              className={`p-2 rounded-lg transition-colors ${
-                tool === 'rectangle'
-                  ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
-              title="Rectangle"
-            >
-              <Square className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => setTool('circle')}
-              className={`p-2 rounded-lg transition-colors ${
-                tool === 'circle'
-                  ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
-              title="Circle"
-            >
-              <CircleIcon className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => setTool('text')}
-              className={`p-2 rounded-lg transition-colors ${
-                tool === 'text'
-                  ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
-              title="Text"
-            >
-              <Type className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => setTool('line')}
-              className={`p-2 rounded-lg transition-colors ${
-                tool === 'line'
-                  ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
-              title="Line"
-            >
-              <Minus className="w-5 h-5" />
-            </button>
-          </div>
+      {/* Top Bar */}
+      <CanvasTopBar
+        scale={scale}
+        onZoomIn={zoomIn}
+        onZoomOut={zoomOut}
+        onResetView={resetView}
+        onUndo={undo}
+        onRedo={redo}
+        onGroup={groupSelected}
+        onUngroup={ungroupSelected}
+        onCopy={duplicateSelected}
+        onDelete={deleteSelected}
+        onSave={handleSave}
+        onShare={handleShare}
+        canUndo={historyIndex > 0}
+        canRedo={historyIndex < history.length - 1}
+        canGroup={false} // TODO: Implement
+        canUngroup={false} // TODO: Implement
+        canCopy={!!selectedId}
+        canDelete={!!selectedId}
+        saving={saving}
+      />
 
-          <div className="flex items-center space-x-2">
-            {selectedId && (
-              <>
-                <button
-                  onClick={duplicateSelected}
-                  className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                  title="Duplicate"
-                >
-                  <Copy className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={deleteSelected}
-                  className="p-2 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                  title="Delete"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Canvas Controls */}
-      <div className="flex items-center justify-between p-2 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={zoomOut}
-            className="p-1 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
-            title="Zoom Out"
+      {/* Main Canvas Area */}
+      <div className="flex-1 flex">
+        {/* Canvas */}
+        <div className="flex-1 relative">
+          <Stage
+            ref={stageRef}
+            width={window.innerWidth - (selectedObject ? 320 : 0)}
+            height={window.innerHeight - 120}
+            onMouseDown={checkDeselect}
+            onTouchStart={checkDeselect}
+            onWheel={handleWheel}
+            scaleX={scale}
+            scaleY={scale}
+            x={stagePos.x}
+            y={stagePos.y}
+            draggable={activeTool === 'hand'}
+            onClick={handleStageMouseDown}
           >
-            <ZoomOut className="w-4 h-4" />
-          </button>
-          <span className="text-sm text-gray-600 dark:text-gray-400 min-w-[60px] text-center">
-            {Math.round(scale * 100)}%
-          </span>
-          <button
-            onClick={zoomIn}
-            className="p-1 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
-            title="Zoom In"
-          >
-            <ZoomIn className="w-4 h-4" />
-          </button>
-          <button
-            onClick={resetView}
-            className="p-1 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
-            title="Reset View"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </button>
+            <Layer>
+              {/* Grid */}
+              {Array.from({ length: 50 }, (_, i) => (
+                <Line
+                  key={`grid-v-${i}`}
+                  points={[i * 50, 0, i * 50, 2500]}
+                  stroke="#e5e7eb"
+                  strokeWidth={0.5}
+                  opacity={0.3}
+                />
+              ))}
+              {Array.from({ length: 50 }, (_, i) => (
+                <Line
+                  key={`grid-h-${i}`}
+                  points={[0, i * 50, 2500, i * 50]}
+                  stroke="#e5e7eb"
+                  strokeWidth={0.5}
+                  opacity={0.3}
+                />
+              ))}
+              
+              {/* Objects */}
+              {objects.map(renderObject)}
+              
+              {/* Transformer */}
+              {canEdit && <Transformer ref={transformerRef} />}
+            </Layer>
+          </Stage>
         </div>
 
-        {!canEdit && (
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            {isAuthenticated ? 'Read-only mode' : 'Sign in to edit'}
-          </div>
+        {/* Properties Panel */}
+        {selectedObject && (
+          <PropertiesPanel
+            selectedObject={selectedObject}
+            onObjectChange={handleObjectChange}
+          />
         )}
-      </div>
-
-      {/* Canvas */}
-      <div className="flex-1 overflow-hidden">
-        <Stage
-          ref={stageRef}
-          width={window.innerWidth}
-          height={window.innerHeight - 120}
-          onMouseDown={checkDeselect}
-          onTouchStart={checkDeselect}
-          onWheel={handleWheel}
-          scaleX={scale}
-          scaleY={scale}
-          x={stagePos.x}
-          y={stagePos.y}
-          draggable={tool === 'select'}
-          onClick={handleStageMouseDown}
-        >
-          <Layer>
-            {/* Grid */}
-            {Array.from({ length: 50 }, (_, i) => (
-              <Line
-                key={`grid-v-${i}`}
-                points={[i * 50, 0, i * 50, 2500]}
-                stroke="#e5e7eb"
-                strokeWidth={0.5}
-                opacity={0.3}
-              />
-            ))}
-            {Array.from({ length: 50 }, (_, i) => (
-              <Line
-                key={`grid-h-${i}`}
-                points={[0, i * 50, 2500, i * 50]}
-                stroke="#e5e7eb"
-                strokeWidth={0.5}
-                opacity={0.3}
-              />
-            ))}
-            
-            {/* Objects */}
-            {objects.map(renderObject)}
-            
-            {/* Transformer */}
-            {canEdit && <Transformer ref={transformerRef} />}
-          </Layer>
-        </Stage>
       </div>
     </div>
   );

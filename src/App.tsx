@@ -16,6 +16,7 @@ import { FollowingPage } from './pages/FollowingPage';
 import { NotificationsPage } from './pages/NotificationsPage';
 import { IdeaDetailPage } from './pages/IdeaDetailPage';
 import { IdeaCanvasPage } from './pages/IdeaCanvasPage';
+import { CreatePage } from './pages/CreatePage';
 import { LoginForm } from './components/Auth/LoginForm';
 import { RegisterForm } from './components/Auth/RegisterForm';
 import { AuthCallback } from './pages/AuthCallback';
@@ -32,6 +33,7 @@ function App() {
                 <Route path="/" element={<HomePage />} />
                 <Route path="/explore" element={<ExplorePage />} />
                 <Route path="/popular" element={<PopularPage />} />
+                <Route path="/create" element={<CreatePage />} />
                 <Route path="/login" element={<LoginForm />} />
                 <Route path="/register" element={<RegisterForm />} />
                 <Route path="/auth/callback" element={<AuthCallback />} />

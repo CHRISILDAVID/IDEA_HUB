@@ -272,6 +272,32 @@ export class IdeasService {
   }
 
   /**
+   * Get collaborators for an idea
+   */
+  static async getIdeaCollaborators(ideaId: string): Promise<ApiResponse<any[]>> {
+    try {
+      const { data, error } = await supabase
+        .from('idea_collaborators')
+        .select(`
+          *,
+          user:users(*)
+        `)
+        .eq('idea_id', ideaId);
+
+      if (error) throw error;
+
+      return {
+        data: data || [],
+        message: 'Collaborators retrieved successfully',
+        success: true,
+      };
+    } catch (error) {
+      handleSupabaseError(error);
+      throw error;
+    }
+  }
+
+  /**
    * Get popular/trending ideas
    */
   static async getPopularIdeas(): Promise<ApiResponse<Idea[]>> {
