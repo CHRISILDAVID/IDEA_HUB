@@ -331,7 +331,7 @@ export const DashboardPage: React.FC = () => {
                     Your Ideas ({userIdeas.length})
                   </h3>
                   <Link
-                    to="/create"
+                    to="/ideas/new"
                     className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors inline-flex items-center"
                   >
                     <Plus className="w-4 h-4 mr-2" />
@@ -351,7 +351,7 @@ export const DashboardPage: React.FC = () => {
                       Start sharing your innovative ideas with the community.
                     </p>
                     <Link
-                      to="/create"
+                      to="/ideas/new"
                       className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors inline-flex items-center"
                     >
                       <Plus className="w-4 h-4 mr-2" />

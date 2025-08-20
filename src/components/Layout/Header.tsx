@@ -69,7 +69,7 @@ export const Header: React.FC = () => {
               <>
                 {/* Create Button */}
                 <Link
-                  to="/create"
+                  to="/ideas/new"
                   className="hidden md:flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
                 >
                   <Plus className="w-4 h-4" />
@@ -187,7 +187,7 @@ export const Header: React.FC = () => {
               {isAuthenticated && (
                 <>
                   <Link
-                    to="/create"
+                    to="/ideas/new"
                     className="flex items-center space-x-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-3 py-2 rounded-lg"
                     onClick={() => setIsMenuOpen(false)}
                   >

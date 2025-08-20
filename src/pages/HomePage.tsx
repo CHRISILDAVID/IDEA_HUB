@@ -230,7 +230,7 @@ export const HomePage: React.FC = () => {
               {isAuthenticated ? (
                 <>
                   <Link
-                    to="/create"
+                    to="/ideas/new"
                     className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors inline-flex items-center justify-center"
                   >
                     <Rocket className="w-5 h-5 mr-2" />
@@ -414,7 +414,7 @@ export const HomePage: React.FC = () => {
                   </div>
                 </div>
                 <Link
-                  to="/create"
+                  to="/ideas/new"
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors inline-flex items-center justify-center"
                 >
                   <Rocket className="w-4 h-4 mr-2" />

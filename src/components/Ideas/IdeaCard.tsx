@@ -147,7 +147,7 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onUpdate }) => {
             className="flex items-center space-x-1 px-3 py-1 rounded-lg text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
           >
             <Eye className="w-4 h-4" />
-            <span>View</span>
+            <span>Edit</span>
           </Link>
         </div>
       </div>

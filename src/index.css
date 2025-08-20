@@ -103,6 +103,59 @@
   background-color: #111827;
 }
 
+/* TipTap Editor Styles */
+.ProseMirror {
+  outline: none;
+}
+
+.ProseMirror h1 {
+  @apply text-3xl font-bold text-gray-900 dark:text-white mb-4;
+}
+
+.ProseMirror h2 {
+  @apply text-2xl font-semibold text-gray-900 dark:text-white mb-3;
+}
+
+.ProseMirror h3 {
+  @apply text-xl font-semibold text-gray-900 dark:text-white mb-2;
+}
+
+.ProseMirror p {
+  @apply text-gray-700 dark:text-gray-300 mb-3 leading-relaxed;
+}
+
+.ProseMirror ul, .ProseMirror ol {
+  @apply ml-6 mb-3;
+}
+
+.ProseMirror li {
+  @apply text-gray-700 dark:text-gray-300 mb-1;
+}
+
+.ProseMirror blockquote {
+  @apply border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic text-gray-600 dark:text-gray-400 mb-3;
+}
+
+.ProseMirror code {
+  @apply bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-sm font-mono;
+}
+
+.ProseMirror pre {
+  @apply bg-gray-100 dark:bg-gray-800 p-4 rounded-lg mb-3 overflow-x-auto;
+}
+
+.ProseMirror pre code {
+  @apply bg-transparent p-0;
+}
+
+.ProseMirror .is-editor-empty:first-child::before {
+  color: #adb5bd;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
 /* Focus styles */
 .focus-visible {
   @apply outline-none ring-2 ring-blue-500 ring-offset-2 ring-offset-white dark:ring-offset-gray-900;
