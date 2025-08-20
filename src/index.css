@@ -37,6 +37,12 @@
     animation: fadeIn 0.6s ease-out;
   }
   
+  /* Workspace-specific utilities */
+  .workspace-no-scroll {
+    overflow: hidden !important;
+    height: 100vh !important;
+  }
+  
   @keyframes fadeIn {
     from {
       opacity: 0;

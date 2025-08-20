@@ -73,28 +73,10 @@ const ideaSlice = createSlice({
     setTitle: (state, action: PayloadAction<string>) => {
       state.title = action.payload;
       state.isDirty = true;
-      
-      // Update first line of document content
-      const lines = state.documentContent.split('\n');
-      if (lines.length > 0) {
-        lines[0] = `# ${action.payload}`;
-        state.documentContent = lines.join('\n');
-      } else {
-        state.documentContent = `# ${action.payload}\n\n`;
-      }
     },
     setDocumentContent: (state, action: PayloadAction<string>) => {
       state.documentContent = action.payload;
       state.isDirty = true;
-      
-      // Extract title from first line if it's a heading
-      const lines = action.payload.split('\n');
-      if (lines.length > 0 && lines[0].startsWith('# ')) {
-        const newTitle = lines[0].substring(2).trim();
-        if (newTitle !== state.title) {
-          state.title = newTitle;
-        }
-      }
     },
     addCanvasObject: (state, action: PayloadAction<CanvasObject>) => {
       state.canvasObjects.push(action.payload);

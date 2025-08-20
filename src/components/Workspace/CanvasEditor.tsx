@@ -226,7 +226,7 @@ export const CanvasEditor: React.FC = () => {
 
   return (
     <div 
-      className={`flex-1 relative ${
+      className={`flex-1 relative overflow-hidden ${
         activeEditor === 'canvas' ? 'ring-2 ring-blue-500 ring-inset' : ''
       }`}
       onClick={() => dispatch(setActiveEditor('canvas'))}

@@ -161,16 +161,16 @@ export const IdeaWorkspacePage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
+    <div className="h-screen bg-gray-50 dark:bg-gray-900 flex flex-col overflow-hidden">
       {/* Top Bar */}
       <WorkspaceTopBar onSave={saveIdea} />
 
       {/* Main Content */}
-      <div ref={containerRef} className="flex-1 flex relative">
+      <div ref={containerRef} className="flex-1 flex relative overflow-hidden">
         {/* Document Panel */}
         {(viewMode === 'document' || viewMode === 'both') && (
           <div 
-            className="flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700"
+            className="flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-hidden"
             style={{ 
               width: viewMode === 'both' ? `${documentPanelWidth}%` : '100%',
               minWidth: viewMode === 'both' ? '300px' : 'auto'
@@ -196,7 +196,7 @@ export const IdeaWorkspacePage: React.FC = () => {
         {/* Canvas Panel */}
         {(viewMode === 'canvas' || viewMode === 'both') && (
           <div 
-            className="flex flex-col bg-gray-50 dark:bg-gray-900 relative"
+            className="flex flex-col bg-gray-50 dark:bg-gray-900 relative overflow-hidden"
             style={{ 
               width: viewMode === 'both' ? `${100 - documentPanelWidth}%` : '100%',
               minWidth: viewMode === 'both' ? '300px' : 'auto'

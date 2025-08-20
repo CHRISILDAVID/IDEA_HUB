@@ -49,7 +49,7 @@ export const IdeaName: React.FC = () => {
 
   if (isEditing) {
     return (
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-2 max-w-sm">
         <input
           ref={inputRef}
           type="text"
@@ -65,13 +65,13 @@ export const IdeaName: React.FC = () => {
   }
 
   return (
-    <div className="flex items-center space-x-2 group">
-      <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
+    <div className="flex items-center space-x-2 group max-w-sm">
+      <h1 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
         {title || 'Untitled Idea'}
       </h1>
       <button
         onClick={handleStartEdit}
-        className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
+        className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
       >
         <Edit3 className="w-4 h-4" />
       </button>
