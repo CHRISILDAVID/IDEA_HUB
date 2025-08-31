@@ -1,18 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Share2, Edit3, Loader2 } from 'lucide-react';
+import { ArrowLeft, Users, Share2, Settings } from 'lucide-react';
 import { EraserWorkspace } from '../components/Workspace/EraserWorkspace';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 
-export const IdeaWorkspacePage: React.FC = () => {
+export const WorkspacePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
-  
-  const [idea, setIdea] = useState<any>(null);
+  const [workspace, setWorkspace] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -22,22 +20,22 @@ export const IdeaWorkspacePage: React.FC = () => {
     }
 
     if (id && id !== 'new') {
-      loadIdea();
+      loadWorkspace();
     } else {
       setLoading(false);
     }
   }, [id, isAuthenticated]);
 
-  const loadIdea = async () => {
+  const loadWorkspace = async () => {
     if (!id) return;
     
     try {
       setLoading(true);
-      const response = await api.getIdea(id);
-      setIdea(response.data);
+      const response = await api.getWorkspace(id);
+      setWorkspace(response.data);
     } catch (err) {
-      setError('Failed to load idea');
-      console.error('Error loading idea:', err);
+      setError('Failed to load workspace');
+      console.error('Error loading workspace:', err);
     } finally {
       setLoading(false);
     }
@@ -45,31 +43,20 @@ export const IdeaWorkspacePage: React.FC = () => {
 
   const handleSave = async (elements: any[], appState: any) => {
     try {
-      setSaving(true);
-      
       if (id === 'new') {
-        // Create new idea with workspace content
-        const response = await api.createIdea({
-          title: 'Untitled Idea',
-          description: 'A new visual idea',
-          content: '',
-          canvasData: JSON.stringify({ elements, appState }),
-          category: 'general',
-          tags: [],
-          visibility: 'public',
-          status: 'published',
+        const response = await api.createWorkspace({
+          name: 'Untitled Workspace',
+          content: { elements, appState },
+          isPublic: false,
         });
-        navigate(`/ideas/${response.data.id}`, { replace: true });
-      } else if (idea) {
-        // Update existing idea
-        await api.updateIdea(idea.id, {
-          canvasData: JSON.stringify({ elements, appState }),
+        navigate(`/workspace/${response.data.id}`, { replace: true });
+      } else if (workspace) {
+        await api.updateWorkspace(workspace.id, {
+          content: { elements, appState },
         });
       }
     } catch (err) {
-      console.error('Error saving idea:', err);
-    } finally {
-      setSaving(false);
+      console.error('Error saving workspace:', err);
     }
   };
 
@@ -81,7 +68,7 @@ export const IdeaWorkspacePage: React.FC = () => {
             Authentication Required
           </h2>
           <p className="text-gray-600 dark:text-gray-400">
-            Please sign in to access ideas.
+            Please sign in to access workspaces.
           </p>
         </div>
       </div>
@@ -113,22 +100,10 @@ export const IdeaWorkspacePage: React.FC = () => {
     );
   }
 
-  const isOwner = idea?.author?.id === user?.id;
-  const canEdit = isOwner;
-
-  // Parse canvas data from idea
-  let initialElements = [];
-  let initialAppState = {};
-  
-  if (idea?.canvasData) {
-    try {
-      const parsed = JSON.parse(idea.canvasData);
-      initialElements = parsed.elements || [];
-      initialAppState = parsed.appState || {};
-    } catch (e) {
-      console.error('Error parsing canvas data:', e);
-    }
-  }
+  const isOwner = workspace?.userId === user?.id;
+  const canEdit = isOwner || workspace?.collaborators?.some((c: any) => 
+    c.userId === user?.id && c.role === 'editor'
+  );
 
   return (
     <div className="h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
@@ -145,28 +120,38 @@ export const IdeaWorkspacePage: React.FC = () => {
             
             <div>
               <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {idea?.title || 'New Idea'}
+                {workspace?.name || 'New Workspace'}
               </h1>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                {idea ? (isOwner ? 'Your idea' : `By ${idea.author.username}`) : 'Creating new idea...'}
+                {workspace ? (isOwner ? 'Owner' : 'Collaborator') : 'Creating new workspace...'}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
-            {saving && (
-              <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Saving...</span>
-              </div>
-            )}
-            
-            {canEdit && (
-              <button className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                <Share2 className="w-4 h-4" />
-              </button>
-            )}
-          </div>
+          {workspace && (
+            <div className="flex items-center space-x-2">
+              {workspace.collaborators && workspace.collaborators.length > 0 && (
+                <div className="flex items-center space-x-1">
+                  <Users className="w-4 h-4 text-gray-500" />
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    {workspace.collaborators.length}
+                  </span>
+                </div>
+              )}
+              
+              {isOwner && (
+                <>
+                  <button className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <Share2 className="w-4 h-4" />
+                  </button>
+                  
+                  <button className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <Settings className="w-4 h-4" />
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

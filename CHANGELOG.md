@@ -8,6 +8,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Integrated Eraser Clone workspace functionality as native IdeaHub component
+- Created comprehensive workspace schema with collaboration support
+- Added WorkspacePage and WorkspacesListPage for workspace management
+- Implemented EraserWorkspace component with full drawing capabilities
+- Added workspace API services for CRUD operations and collaboration
+- Created workspace toolbar with drawing tools and settings
+- Added workspace canvas with grid, snap-to-grid, and zoom functionality
+- Integrated workspace navigation in sidebar and routing
+
+### Changed
+- Replaced legacy canvas components with new workspace system
+- Updated IdeaWorkspacePage to use EraserWorkspace component
+- Modified idea schema to store workspace data in canvasData field
+- Updated Redux store to handle workspace elements and app state
+- Refactored workspace state management for better performance
+
+### Removed
+- Removed legacy Canvas components (CanvasEditor, CanvasToolbar, etc.)
+- Cleaned up old workspace components that were replaced
+- Removed Kinde and Convex dependencies from eraser clone integration
+
+### Added
 - Implemented Redux state management with @reduxjs/toolkit for centralized workspace state
 - Created universal IdeaWorkspacePage component replacing multiple page-level implementations
 - Added TipTap rich text editor for live document editing with WYSIWYG experience

@@ -5,9 +5,10 @@ import { UsersService } from './users';
 import { NotificationsService } from './notifications';
 import { ActivitiesService } from './activities';
 import { StatsService } from './stats';
+import { WorkspacesService } from './workspaces';
 
 // Re-export all services
-export { AuthService, IdeasService, UsersService, NotificationsService, ActivitiesService, StatsService };
+export { AuthService, IdeasService, UsersService, NotificationsService, ActivitiesService, StatsService, WorkspacesService };
 
 // Re-export transformers and types
 export {
@@ -73,4 +74,14 @@ export const supabaseApi = {
   getPopularStats: StatsService.getPopularStats,
   getUserDashboardStats: StatsService.getUserDashboardStats,
   getPlatformStats: StatsService.getPlatformStats,
+
+  // Workspaces
+  getUserWorkspaces: WorkspacesService.getUserWorkspaces,
+  getWorkspace: WorkspacesService.getWorkspace,
+  createWorkspace: WorkspacesService.createWorkspace,
+  updateWorkspace: WorkspacesService.updateWorkspace,
+  deleteWorkspace: WorkspacesService.deleteWorkspace,
+  shareWorkspace: WorkspacesService.shareWorkspace,
+  getSharedWorkspaces: WorkspacesService.getSharedWorkspaces,
+  removeCollaborator: WorkspacesService.removeCollaborator,
 };

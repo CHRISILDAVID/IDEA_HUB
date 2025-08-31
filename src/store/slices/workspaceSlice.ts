@@ -2,7 +2,7 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 export type ViewMode = 'document' | 'both' | 'canvas';
 export type ActiveEditor = 'document' | 'canvas';
-export type CanvasTool = 'select' | 'rectangle' | 'circle' | 'text' | 'pen' | 'image';
+export type WorkspaceTool = 'selection' | 'rectangle' | 'circle' | 'arrow' | 'text' | 'pen' | 'image';
 
 interface ClipboardData {
   type: 'text' | 'canvas-objects';
@@ -12,7 +12,7 @@ interface ClipboardData {
 interface WorkspaceState {
   viewMode: ViewMode;
   activeEditor: ActiveEditor;
-  activeTool: CanvasTool;
+  activeTool: WorkspaceTool;
   clipboard: ClipboardData | null;
   documentPanelWidth: number; // percentage (0-100)
   isLoading: boolean;
@@ -23,7 +23,7 @@ interface WorkspaceState {
 const initialState: WorkspaceState = {
   viewMode: 'both',
   activeEditor: 'document',
-  activeTool: 'select',
+  activeTool: 'selection',
   clipboard: null,
   documentPanelWidth: 50,
   isLoading: false,
@@ -50,7 +50,7 @@ const workspaceSlice = createSlice({
     setActiveTool: (state, action: PayloadAction<CanvasTool>) => {
       state.activeTool = action.payload;
       // When selecting a tool, focus the canvas
-      if (action.payload !== 'select') {
+      if (action.payload !== 'selection') {
         state.activeEditor = 'canvas';
       }
     },

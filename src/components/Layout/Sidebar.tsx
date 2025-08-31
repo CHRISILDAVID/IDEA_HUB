@@ -8,7 +8,8 @@ import {
   TrendingUp, 
   Users, 
   Settings,
-  User
+  User,
+  Grid
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -28,6 +29,7 @@ export const Sidebar: React.FC = () => {
 
   const userNavItems = isAuthenticated ? [
     { path: '/dashboard', label: 'Dashboard', icon: User },
+    { path: '/workspaces', label: 'Workspaces', icon: Grid },
     { path: '/starred', label: 'Starred', icon: Star },
     { path: '/forks', label: 'Forks', icon: GitFork },
     { path: '/following', label: 'Following', icon: Users },

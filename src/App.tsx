@@ -17,6 +17,8 @@ import { ForksPage } from './pages/ForksPage';
 import { FollowingPage } from './pages/FollowingPage';
 import { NotificationsPage } from './pages/NotificationsPage';
 import { IdeaWorkspacePage } from './pages/IdeaWorkspacePage';
+import { WorkspacePage } from './pages/WorkspacePage';
+import { WorkspacesListPage } from './pages/WorkspacesListPage';
 import { LoginForm } from './components/Auth/LoginForm';
 import { RegisterForm } from './components/Auth/RegisterForm';
 import { AuthCallback } from './pages/AuthCallback';
@@ -85,6 +87,16 @@ function App() {
                   <Route path="/notifications" element={
                     <ProtectedRoute>
                       <NotificationsPage />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/workspaces" element={
+                    <ProtectedRoute>
+                      <WorkspacesListPage />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/workspace/:id" element={
+                    <ProtectedRoute>
+                      <WorkspacePage />
                     </ProtectedRoute>
                   } />
                 </Routes>
