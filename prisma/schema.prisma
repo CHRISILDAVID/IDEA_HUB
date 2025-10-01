@@ -1,0 +1,197 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  username     String   @unique
+  email        String   @unique
+  fullName     String   @map("full_name")
+  avatarUrl    String?  @map("avatar_url")
+  bio          String?
+  location     String?
+  website      String?
+  joinedAt     DateTime @default(now()) @map("joined_at") @db.Timestamptz(6)
+  followers    Int      @default(0)
+  following    Int      @default(0)
+  publicRepos  Int      @default(0) @map("public_repos")
+  isVerified   Boolean  @default(false) @map("is_verified")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  ideas                    Idea[]                @relation("AuthorIdeas")
+  editedIdeas              Idea[]                @relation("EditedIdeas")
+  forkedIdeas              Idea[]                @relation("ForkedIdeas")
+  comments                 Comment[]
+  stars                    Star[]
+  followersRel             Follow[]              @relation("Following")
+  followingRel             Follow[]              @relation("Follower")
+  notifications            Notification[]        @relation("UserNotifications")
+  relatedNotifications     Notification[]        @relation("RelatedUserNotifications")
+  ideaCollaborators        IdeaCollaborator[]
+  grantedCollaborations    IdeaCollaborator[]    @relation("GrantedBy")
+  workspaces               Workspace[]
+  workspaceCollaborators   WorkspaceCollaborator[]
+
+  @@map("users")
+}
+
+model Idea {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title          String
+  description    String
+  content        String
+  canvasData     String?  @map("canvas_data")
+  authorId       String   @map("author_id") @db.Uuid
+  tags           String[] @default([])
+  category       String
+  license        String   @default("MIT")
+  version        String   @default("1.0.0")
+  stars          Int      @default(0)
+  forks          Int      @default(0)
+  isFork         Boolean  @default(false) @map("is_fork")
+  forkedFrom     String?  @map("forked_from") @db.Uuid
+  visibility     String   @default("public")
+  language       String?
+  status         String   @default("published")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  editorContent  Json?    @map("editor_content") @db.JsonB
+  whiteboardData Json?    @map("whiteboard_data") @db.JsonB
+  lastEditedAt   DateTime @default(now()) @map("last_edited_at") @db.Timestamptz(6)
+  lastEditedBy   String?  @map("last_edited_by") @db.Uuid
+
+  // Relations
+  author            User               @relation("AuthorIdeas", fields: [authorId], references: [id], onDelete: Cascade)
+  lastEditor        User?              @relation("EditedIdeas", fields: [lastEditedBy], references: [id])
+  parentIdea        Idea?              @relation("ForkedIdeas", fields: [forkedFrom], references: [id])
+  childIdeas        Idea[]             @relation("ForkedIdeas")
+  comments          Comment[]
+  starsList         Star[]
+  notifications     Notification[]
+  ideaCollaborators IdeaCollaborator[]
+
+  @@map("ideas")
+}
+
+model Comment {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  content   String
+  authorId  String   @map("author_id") @db.Uuid
+  ideaId    String   @map("idea_id") @db.Uuid
+  parentId  String?  @map("parent_id") @db.Uuid
+  votes     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  author   User      @relation(fields: [authorId], references: [id])
+  idea     Idea      @relation(fields: [ideaId], references: [id])
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies  Comment[] @relation("CommentReplies")
+
+  @@map("comments")
+}
+
+model Star {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  ideaId    String   @map("idea_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+  idea Idea @relation(fields: [ideaId], references: [id])
+
+  @@map("stars")
+}
+
+model Follow {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  followerId  String   @map("follower_id") @db.Uuid
+  followingId String   @map("following_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  follower  User @relation("Follower", fields: [followerId], references: [id])
+  following User @relation("Following", fields: [followingId], references: [id])
+
+  @@map("follows")
+}
+
+model Notification {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  type          String
+  message       String
+  isRead        Boolean  @default(false) @map("is_read")
+  relatedUserId String?  @map("related_user_id") @db.Uuid
+  relatedIdeaId String?  @map("related_idea_id") @db.Uuid
+  relatedUrl    String?  @map("related_url")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  user        User  @relation("UserNotifications", fields: [userId], references: [id])
+  relatedUser User? @relation("RelatedUserNotifications", fields: [relatedUserId], references: [id])
+  relatedIdea Idea? @relation(fields: [relatedIdeaId], references: [id])
+
+  @@map("notifications")
+}
+
+model IdeaCollaborator {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  ideaId    String   @map("idea_id") @db.Uuid
+  role      String
+  grantedBy String   @map("granted_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  user    User @relation(fields: [userId], references: [id])
+  idea    Idea @relation(fields: [ideaId], references: [id])
+  granter User @relation("GrantedBy", fields: [grantedBy], references: [id])
+
+  @@map("idea_collaborators")
+}
+
+model Workspace {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String   @default("Untitled Workspace")
+  userId    String   @map("user_id") @db.Uuid
+  content   Json     @default("{\"elements\": [], \"appState\": {}}") @db.JsonB
+  thumbnail String?
+  isPublic  Boolean  @default(false) @map("is_public")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  user          User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  collaborators WorkspaceCollaborator[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceCollaborator {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  role        String   @default("viewer")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@map("workspace_collaborators")
+}
