@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
+import { IdeasService } from '../../services/api/ideas';
 import { Idea } from '../../types';
 
 interface ForkButtonProps {
@@ -40,22 +40,17 @@ export const ForkButton: React.FC<ForkButtonProps> = ({
       setIsLoading(true);
       setError('');
 
-      // Use the fork_idea RPC
-      const { data: newIdeaId, error } = await supabase.rpc('fork_idea', {
-        parent_idea_id: idea.id,
-        new_title: title,
-        new_description: description
+      // Use the IdeasService forkIdea method
+      const forkedIdea = await IdeasService.forkIdea(idea.id, {
+        title,
+        description,
       });
-
-      if (error) {
-        throw error;
-      }
 
       // Close modal
       handleCloseModal();
       
       // Navigate to the new idea's page
-      navigate(`/idea/${newIdeaId}`);
+      navigate(`/idea/${forkedIdea.id}`);
     } catch (err: any) {
       console.error('Failed to fork idea:', err);
       setError(err.message || 'Failed to fork idea');

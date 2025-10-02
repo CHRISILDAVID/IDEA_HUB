@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { IdeasService } from '../../services/api/ideas';
 
 interface StarButtonProps {
   ideaId: string;
@@ -22,19 +22,12 @@ export const StarButton: React.FC<StarButtonProps> = ({
     try {
       setIsLoading(true);
       
-      // Use the toggle_star RPC
-      const { data, error } = await supabase.rpc('toggle_star', {
-        idea_id_to_toggle: ideaId
-      });
+      // Use the IdeasService starIdea method
+      const result = await IdeasService.starIdea(ideaId, !isStarred);
 
-      if (error) {
-        console.error('Error toggling star:', error);
-        return;
-      }
-
-      // Update local state based on the response
-      setIsStarred(data.is_starred);
-      setStarCount(prev => data.is_starred ? prev + 1 : prev - 1);
+      // Update local state based on the action
+      setIsStarred(!isStarred);
+      setStarCount(prev => !isStarred ? prev + 1 : prev - 1);
     } catch (error) {
       console.error('Failed to toggle star:', error);
     } finally {
