@@ -70,8 +70,47 @@ export function extractTokenFromHeader(authHeader: string | null): string | null
 }
 
 /**
- * Store token in localStorage (browser only)
+ * Check if a token is expired (browser-safe)
+ * This doesn't verify the signature, just checks expiration
  */
+export function isTokenExpired(token: string): boolean {
+  try {
+    // JWT tokens have 3 parts separated by dots
+    const parts = token.split('.');
+    if (parts.length !== 3) return true;
+
+    // Decode payload (base64url)
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    
+    // Check expiration
+    if (payload.exp) {
+      const now = Math.floor(Date.now() / 1000);
+      return payload.exp < now;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error checking token expiration:', error);
+    return true;
+  }
+}
+
+/**
+ * Get payload from token without verification (browser-safe)
+ * WARNING: This does not verify the token signature
+ */
+export function getTokenPayload(token: string): JWTPayload | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return payload as JWTPayload;
+  } catch (error) {
+    console.error('Error decoding token:', error);
+    return null;
+  }
+}
 export function storeToken(token: string): void {
   if (typeof window !== 'undefined') {
     localStorage.setItem('auth_token', token);

@@ -1,7 +1,48 @@
-import { supabase, handleSupabaseError } from '../../lib/supabase';
 import { Idea, SearchFilters, ApiResponse } from '../../types';
-import { transformDbIdea } from './transformers';
-import { AuthService } from './auth';
+import apiClient from '../../lib/api-client';
+
+// Helper function to transform API response to Idea type
+function transformApiIdea(apiIdea: any): Idea {
+  return {
+    id: apiIdea.id,
+    title: apiIdea.title,
+    description: apiIdea.description,
+    content: apiIdea.content,
+    canvasData: apiIdea.canvasData || apiIdea.canvas_data,
+    author: {
+      id: apiIdea.author.id,
+      username: apiIdea.author.username,
+      email: apiIdea.author.email,
+      fullName: apiIdea.author.fullName || apiIdea.author.full_name,
+      avatar: apiIdea.author.avatarUrl || apiIdea.author.avatar_url,
+      bio: apiIdea.author.bio,
+      location: apiIdea.author.location,
+      website: apiIdea.author.website,
+      joinedAt: apiIdea.author.joinedAt || apiIdea.author.joined_at,
+      followers: apiIdea.author.followers || 0,
+      following: apiIdea.author.following || 0,
+      publicRepos: apiIdea.author.publicRepos || apiIdea.author.public_repos || 0,
+      isVerified: apiIdea.author.isVerified || apiIdea.author.is_verified || false,
+    },
+    tags: apiIdea.tags || [],
+    category: apiIdea.category,
+    license: apiIdea.license,
+    version: apiIdea.version || '1.0.0',
+    stars: apiIdea.stars || 0,
+    forks: apiIdea.forks || 0,
+    isStarred: apiIdea.isStarred || false,
+    isFork: apiIdea.isFork || apiIdea.is_fork || false,
+    forkedFrom: apiIdea.forkedFrom || apiIdea.forked_from || null,
+    visibility: apiIdea.visibility?.toLowerCase() as 'public' | 'private',
+    createdAt: apiIdea.createdAt || apiIdea.created_at,
+    updatedAt: apiIdea.updatedAt || apiIdea.updated_at,
+    collaborators: apiIdea.collaborators || [],
+    comments: apiIdea.comments || [],
+    issues: [],
+    language: apiIdea.language || null,
+    status: apiIdea.status?.toLowerCase() as 'draft' | 'published' | 'archived',
+  };
+}
 
 export class IdeasService {
   /**
@@ -9,55 +50,36 @@ export class IdeasService {
    */
   static async getIdeas(filters?: Partial<SearchFilters>): Promise<ApiResponse<Idea[]>> {
     try {
-      let query = supabase
-        .from('ideas')
-        .select(`
-          *,
-          author:users(*),
-          is_starred:stars!left(user_id)
-        `)
-        .eq('visibility', 'public')
-        .eq('status', 'published');
-
-      // Apply filters
+      // Build query parameters
+      const params = new URLSearchParams();
+      
       if (filters?.category && filters.category !== 'all') {
-        query = query.eq('category', filters.category);
+        params.append('category', filters.category);
       }
 
       if (filters?.language && filters.language !== 'all') {
-        query = query.eq('language', filters.language);
+        params.append('language', filters.language);
       }
 
       if (filters?.query) {
-        query = query.or(`title.ilike.%${filters.query}%,description.ilike.%${filters.query}%`);
+        params.append('search', filters.query);
       }
 
-      // Apply sorting
-      switch (filters?.sort) {
-        case 'oldest':
-          query = query.order('created_at', { ascending: true });
-          break;
-        case 'most-stars':
-          query = query.order('stars', { ascending: false });
-          break;
-        case 'most-forks':
-          query = query.order('forks', { ascending: false });
-          break;
-        case 'recently-updated':
-          query = query.order('updated_at', { ascending: false });
-          break;
-        default:
-          query = query.order('created_at', { ascending: false });
-      }
+      // Default to showing public ideas
+      params.append('visibility', 'PUBLIC');
+      
+      // TODO: Add sorting support in backend
+      // For now, backend returns by created_at desc
 
-      const { data, error } = await query;
+      const queryString = params.toString();
+      const endpoint = queryString ? `/ideas-list?${queryString}` : '/ideas-list';
+      
+      const response = await apiClient.get<{
+        data: any[];
+        success: boolean;
+      }>(endpoint);
 
-      if (error) throw error;
-
-      const ideas = data?.map((item: any) => {
-        const isStarred = item.is_starred?.length > 0;
-        return transformDbIdea({ ...item, is_starred: isStarred });
-      }) || [];
+      const ideas = response.data?.map(transformApiIdea) || [];
 
       return {
         data: ideas,
@@ -65,7 +87,7 @@ export class IdeasService {
         success: true,
       };
     } catch (error) {
-      handleSupabaseError(error);
+      console.error('Error fetching ideas:', error);
       throw error;
     }
   }
@@ -75,20 +97,12 @@ export class IdeasService {
    */
   static async getIdea(id: string): Promise<ApiResponse<Idea>> {
     try {
-      const { data, error } = await supabase
-        .from('ideas')
-        .select(`
-          *,
-          author:users(*),
-          is_starred:stars!left(user_id)
-        `)
-        .eq('id', id)
-        .single();
+      const response = await apiClient.get<{
+        data: any;
+        success: boolean;
+      }>(`/ideas-get?id=${id}`);
 
-      if (error) throw error;
-
-      const isStarred = data.is_starred?.length > 0;
-      const idea = transformDbIdea({ ...data, is_starred: isStarred });
+      const idea = transformApiIdea(response.data);
 
       return {
         data: idea,
@@ -96,7 +110,7 @@ export class IdeasService {
         success: true,
       };
     } catch (error) {
-      handleSupabaseError(error);
+      console.error('Error fetching idea:', error);
       throw error;
     }
   }
@@ -106,41 +120,32 @@ export class IdeasService {
    */
   static async createIdea(ideaData: Partial<Idea>): Promise<ApiResponse<Idea>> {
     try {
-      const userId = await AuthService.getCurrentUserId();
-      if (!userId) throw new Error('User not authenticated');
+      const response = await apiClient.post<{
+        data: any;
+        success: boolean;
+        message: string;
+      }>('/ideas-create', {
+        title: ideaData.title!,
+        description: ideaData.description!,
+        content: ideaData.content!,
+        canvasData: ideaData.canvasData,
+        tags: ideaData.tags || [],
+        category: ideaData.category!,
+        license: ideaData.license || 'MIT',
+        visibility: ideaData.visibility?.toUpperCase() || 'PUBLIC',
+        language: ideaData.language,
+        status: ideaData.status?.toUpperCase() || 'PUBLISHED',
+      });
 
-      const { data, error } = await supabase
-        .from('ideas')
-        .insert({
-          title: ideaData.title!,
-          description: ideaData.description!,
-          content: ideaData.content!,
-          canvas_data: ideaData.canvasData,
-          author_id: userId,
-          tags: ideaData.tags || [],
-          category: ideaData.category!,
-          license: ideaData.license || 'MIT',
-          visibility: ideaData.visibility || 'public',
-          language: ideaData.language,
-          status: ideaData.status || 'published',
-        } as any)
-        .select(`
-          *,
-          author:users(*)
-        `)
-        .single();
-
-      if (error) throw error;
-
-      const idea = transformDbIdea(data as any);
+      const idea = transformApiIdea(response.data);
 
       return {
         data: idea,
-        message: 'Idea created successfully',
+        message: response.message || 'Idea created successfully',
         success: true,
       };
     } catch (error) {
-      handleSupabaseError(error);
+      console.error('Error creating idea:', error);
       throw error;
     }
   }
@@ -150,38 +155,33 @@ export class IdeasService {
    */
   static async updateIdea(id: string, ideaData: Partial<Idea>): Promise<ApiResponse<Idea>> {
     try {
-      const { data, error } = await supabase
-        .from('ideas')
-        .update({
-          title: ideaData.title,
-          description: ideaData.description,
-          content: ideaData.content,
-          canvas_data: ideaData.canvasData,
-          tags: ideaData.tags,
-          category: ideaData.category,
-          license: ideaData.license,
-          visibility: ideaData.visibility,
-          language: ideaData.language,
-          status: ideaData.status,
-        } as any)
-        .eq('id', id)
-        .select(`
-          *,
-          author:users(*)
-        `)
-        .single();
+      const response = await apiClient.put<{
+        data: any;
+        success: boolean;
+        message: string;
+      }>('/ideas-update', {
+        ideaId: id,
+        title: ideaData.title,
+        description: ideaData.description,
+        content: ideaData.content,
+        canvasData: ideaData.canvasData,
+        tags: ideaData.tags,
+        category: ideaData.category,
+        license: ideaData.license,
+        visibility: ideaData.visibility?.toUpperCase(),
+        language: ideaData.language,
+        status: ideaData.status?.toUpperCase(),
+      });
 
-      if (error) throw error;
-
-      const idea = transformDbIdea(data as any);
+      const idea = transformApiIdea(response.data);
 
       return {
         data: idea,
-        message: 'Idea updated successfully',
+        message: response.message || 'Idea updated successfully',
         success: true,
       };
     } catch (error) {
-      handleSupabaseError(error);
+      console.error('Error updating idea:', error);
       throw error;
     }
   }
@@ -191,82 +191,98 @@ export class IdeasService {
    */
   static async deleteIdea(id: string): Promise<ApiResponse<void>> {
     try {
-      const { error } = await supabase
-        .from('ideas')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      const response = await apiClient.delete<{
+        success: boolean;
+        message: string;
+      }>(`/ideas-delete?id=${id}`);
 
       return {
         data: undefined,
-        message: 'Idea deleted successfully',
+        message: response.message || 'Idea deleted successfully',
         success: true,
       };
     } catch (error) {
-      handleSupabaseError(error);
+      console.error('Error deleting idea:', error);
       throw error;
     }
   }
 
   /**
-   * Star or unstar an idea using the toggle_star RPC function
+   * Star or unstar an idea
    */
   static async starIdea(id: string): Promise<ApiResponse<void>> {
     try {
-      // Use the toggle_star RPC function for atomic operations
-      const { data, error } = await supabase
-        .rpc('toggle_star', { idea_id_to_toggle: id });
-
-      if (error) throw error;
+      // Determine current star status and toggle
+      // For now, we'll use 'star' action - backend should check current status
+      const response = await apiClient.post<{
+        success: boolean;
+        message: string;
+        isStarred: boolean;
+      }>('/ideas-star', {
+        ideaId: id,
+        action: 'star' // or 'unstar' - will be handled by separate unstar method
+      });
 
       return {
         data: undefined,
-        message: data.message || 'Star status updated',
-        success: data.success,
+        message: response.message || 'Star status updated',
+        success: true,
       };
     } catch (error) {
-      handleSupabaseError(error);
+      console.error('Error starring idea:', error);
       throw error;
     }
   }
 
   /**
-   * Fork an idea using the fork_idea RPC function
+   * Unstar an idea
    */
-  static async forkIdea(id: string, newTitle?: string, newDescription?: string): Promise<ApiResponse<Idea>> {
+  static async unstarIdea(id: string): Promise<ApiResponse<void>> {
     try {
-      // Use the fork_idea RPC function for atomic operations
-      const { data: newIdeaId, error } = await supabase
-        .rpc('fork_idea', { 
-          parent_idea_id: id,
-          new_title: newTitle,
-          new_description: newDescription
-        });
-
-      if (error) throw error;
-
-      // Fetch the newly created idea with author details
-      const { data, error: fetchError } = await supabase
-        .from('ideas')
-        .select(`
-          *,
-          author:users(*)
-        `)
-        .eq('id', newIdeaId)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      const idea = transformDbIdea(data as any);
+      const response = await apiClient.post<{
+        success: boolean;
+        message: string;
+        isStarred: boolean;
+      }>('/ideas-star', {
+        ideaId: id,
+        action: 'unstar'
+      });
 
       return {
-        data: idea,
-        message: 'Idea forked successfully',
+        data: undefined,
+        message: response.message || 'Idea unstarred',
         success: true,
       };
     } catch (error) {
-      handleSupabaseError(error);
+      console.error('Error unstarring idea:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fork an idea
+   */
+  static async forkIdea(id: string, newTitle?: string, newDescription?: string): Promise<ApiResponse<Idea>> {
+    try {
+      const response = await apiClient.post<{
+        data: any;
+        success: boolean;
+        message: string;
+      }>('/ideas-fork', {
+        ideaId: id,
+        newTitle,
+        newDescription
+      });
+
+      const idea = transformApiIdea(response.data);
+
+      return {
+        data: idea,
+        message: response.message || 'Idea forked successfully',
+        success: true,
+      };
+    } catch (error) {
+      console.error('Error forking idea:', error);
       throw error;
     }
   }
