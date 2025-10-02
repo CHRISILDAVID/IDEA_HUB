@@ -1,6 +1,5 @@
-import { supabase, handleSupabaseError } from '../../lib/supabase';
 import { ApiResponse } from '../../types';
-import { AuthService } from './auth';
+import apiClient from '../../lib/api-client';
 
 export interface Workspace {
   id: string;
@@ -31,52 +30,43 @@ export interface WorkspaceCollaborator {
   createdAt: string;
 }
 
+// Helper function to transform workspace data
+function transformWorkspace(data: any): Workspace {
+  return {
+    id: data.id,
+    name: data.name,
+    userId: data.userId || data.user_id,
+    content: data.content || { elements: [], appState: {} },
+    thumbnail: data.thumbnail,
+    isPublic: data.isPublic || data.is_public,
+    createdAt: data.createdAt || data.created_at,
+    updatedAt: data.updatedAt || data.updated_at,
+    collaborators: data.collaborators?.map((collab: any) => ({
+      id: collab.id,
+      workspaceId: collab.workspaceId || collab.workspace_id,
+      userId: collab.userId || collab.user_id,
+      role: collab.role,
+      user: {
+        id: collab.user.id,
+        username: collab.user.username,
+        fullName: collab.user.fullName || collab.user.full_name,
+        avatar: collab.user.avatarUrl || collab.user.avatar_url,
+      },
+      createdAt: collab.createdAt || collab.created_at,
+    })) || [],
+  };
+}
+
 export class WorkspacesService {
   /**
    * Get user's workspaces
    */
-  static async getUserWorkspaces(): Promise<ApiResponse<Workspace[]>> {
+  static async getUserWorkspaces(userId?: string): Promise<ApiResponse<Workspace[]>> {
     try {
-      const userId = await AuthService.getCurrentUserId();
-      if (!userId) throw new Error('User not authenticated');
+      const endpoint = userId ? `/workspaces-list?userId=${userId}` : '/workspaces-list';
+      const response = await apiClient.get<{ data: any[]; success: boolean }>(endpoint);
 
-      const { data, error } = await supabase
-        .from('workspaces')
-        .select(`
-          *,
-          collaborators:workspace_collaborators(
-            *,
-            user:users(id, username, full_name, avatar_url)
-          )
-        `)
-        .eq('user_id', userId)
-        .order('updated_at', { ascending: false });
-
-      if (error) throw error;
-
-      const workspaces: Workspace[] = data?.map((item: any) => ({
-        id: item.id,
-        name: item.name,
-        userId: item.user_id,
-        content: item.content || { elements: [], appState: {} },
-        thumbnail: item.thumbnail,
-        isPublic: item.is_public,
-        createdAt: item.created_at,
-        updatedAt: item.updated_at,
-        collaborators: item.collaborators?.map((collab: any) => ({
-          id: collab.id,
-          workspaceId: collab.workspace_id,
-          userId: collab.user_id,
-          role: collab.role,
-          user: {
-            id: collab.user.id,
-            username: collab.user.username,
-            fullName: collab.user.full_name,
-            avatar: collab.user.avatar_url,
-          },
-          createdAt: collab.created_at,
-        })) || [],
-      })) || [];
+      const workspaces = response.data.map(transformWorkspace);
 
       return {
         data: workspaces,
@@ -84,7 +74,7 @@ export class WorkspacesService {
         success: true,
       };
     } catch (error) {
-      handleSupabaseError(error);
+      console.error('Get user workspaces error:', error);
       throw error;
     }
   }
@@ -94,43 +84,8 @@ export class WorkspacesService {
    */
   static async getWorkspace(id: string): Promise<ApiResponse<Workspace>> {
     try {
-      const { data, error } = await supabase
-        .from('workspaces')
-        .select(`
-          *,
-          collaborators:workspace_collaborators(
-            *,
-            user:users(id, username, full_name, avatar_url)
-          )
-        `)
-        .eq('id', id)
-        .single();
-
-      if (error) throw error;
-
-      const workspace: Workspace = {
-        id: data.id,
-        name: data.name,
-        userId: data.user_id,
-        content: data.content || { elements: [], appState: {} },
-        thumbnail: data.thumbnail,
-        isPublic: data.is_public,
-        createdAt: data.created_at,
-        updatedAt: data.updated_at,
-        collaborators: data.collaborators?.map((collab: any) => ({
-          id: collab.id,
-          workspaceId: collab.workspace_id,
-          userId: collab.user_id,
-          role: collab.role,
-          user: {
-            id: collab.user.id,
-            username: collab.user.username,
-            fullName: collab.user.full_name,
-            avatar: collab.user.avatar_url,
-          },
-          createdAt: collab.created_at,
-        })) || [],
-      };
+      const response = await apiClient.get<{ data: any; success: boolean }>(`/workspaces-get?id=${id}`);
+      const workspace = transformWorkspace(response.data);
 
       return {
         data: workspace,
@@ -138,34 +93,26 @@ export class WorkspacesService {
         success: true,
       };
     } catch (error) {
-      handleSupabaseError(error);
+      console.error('Get workspace error:', error);
       throw error;
     }
   }
 
   /**
    * Create a new workspace
+   * NOTE: Workspaces are now created automatically with ideas
+   * This method exists for backwards compatibility
    */
   static async createWorkspace(workspaceData: {
     name: string;
     content: any;
     isPublic?: boolean;
   }): Promise<ApiResponse<Workspace>> {
-    try {
-      const { data, error } = await supabase
-        .rpc('create_workspace_with_owner', {
-          workspace_name: workspaceData.name,
-          workspace_content: workspaceData.content,
-        });
-
-      if (error) throw error;
-
-      // Fetch the created workspace
-      return this.getWorkspace(data);
-    } catch (error) {
-      handleSupabaseError(error);
-      throw error;
-    }
+    // Workspaces should be created via ideas-create endpoint
+    // This is deprecated but kept for backwards compatibility
+    console.warn('createWorkspace is deprecated. Workspaces are now created with ideas.');
+    
+    throw new Error('Workspaces must be created via the ideas endpoint');
   }
 
   /**
@@ -178,73 +125,46 @@ export class WorkspacesService {
     isPublic?: boolean;
   }): Promise<ApiResponse<Workspace>> {
     try {
-      const { data, error } = await supabase
-        .from('workspaces')
-        .update({
-          name: updates.name,
-          content: updates.content,
-          thumbnail: updates.thumbnail,
-          is_public: updates.isPublic,
-        } as any)
-        .eq('id', id)
-        .select()
-        .single();
+      const response = await apiClient.put<{ data: any; success: boolean }>('/workspaces-update', {
+        workspaceId: id,
+        ...updates,
+      });
 
-      if (error) throw error;
+      const workspace = transformWorkspace(response.data);
 
-      return this.getWorkspace(id);
+      return {
+        data: workspace,
+        message: 'Workspace updated successfully',
+        success: true,
+      };
     } catch (error) {
-      handleSupabaseError(error);
+      console.error('Update workspace error:', error);
       throw error;
     }
   }
 
   /**
    * Delete a workspace
+   * NOTE: Workspaces are deleted automatically when ideas are deleted
+   * This method exists for backwards compatibility
    */
   static async deleteWorkspace(id: string): Promise<ApiResponse<void>> {
-    try {
-      const { error } = await supabase
-        .from('workspaces')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      return {
-        data: undefined,
-        message: 'Workspace deleted successfully',
-        success: true,
-      };
-    } catch (error) {
-      handleSupabaseError(error);
-      throw error;
-    }
+    // Workspaces should be deleted via ideas-delete endpoint
+    // This is deprecated but kept for backwards compatibility
+    console.warn('deleteWorkspace is deprecated. Workspaces are deleted with ideas.');
+    
+    throw new Error('Workspaces must be deleted via the ideas endpoint');
   }
 
   /**
    * Share workspace with a user
+   * NOTE: Workspaces are shared via idea collaborators
+   * Use the collaborators endpoints instead
    */
   static async shareWorkspace(workspaceId: string, userEmail: string, role: 'editor' | 'viewer' = 'viewer'): Promise<ApiResponse<void>> {
-    try {
-      const { data, error } = await supabase
-        .rpc('share_workspace', {
-          workspace_id_param: workspaceId,
-          user_email: userEmail,
-          role_param: role,
-        });
-
-      if (error) throw error;
-
-      return {
-        data: undefined,
-        message: 'Workspace shared successfully',
-        success: true,
-      };
-    } catch (error) {
-      handleSupabaseError(error);
-      throw error;
-    }
+    console.warn('shareWorkspace is deprecated. Use collaborators-add endpoint instead.');
+    
+    throw new Error('Use collaborators-add endpoint to share workspaces');
   }
 
   /**
@@ -252,81 +172,50 @@ export class WorkspacesService {
    */
   static async getSharedWorkspaces(): Promise<ApiResponse<Workspace[]>> {
     try {
-      const userId = await AuthService.getCurrentUserId();
-      if (!userId) throw new Error('User not authenticated');
-
-      const { data, error } = await supabase
-        .from('workspace_collaborators')
-        .select(`
-          workspace:workspaces(
-            *,
-            collaborators:workspace_collaborators(
-              *,
-              user:users(id, username, full_name, avatar_url)
-            )
-          )
-        `)
-        .eq('user_id', userId)
-        .neq('role', 'owner');
-
-      if (error) throw error;
-
-      const workspaces: Workspace[] = data?.map((item: any) => ({
-        id: item.workspace.id,
-        name: item.workspace.name,
-        userId: item.workspace.user_id,
-        content: item.workspace.content || { elements: [], appState: {} },
-        thumbnail: item.workspace.thumbnail,
-        isPublic: item.workspace.is_public,
-        createdAt: item.workspace.created_at,
-        updatedAt: item.workspace.updated_at,
-        collaborators: item.workspace.collaborators?.map((collab: any) => ({
-          id: collab.id,
-          workspaceId: collab.workspace_id,
-          userId: collab.user_id,
-          role: collab.role,
-          user: {
-            id: collab.user.id,
-            username: collab.user.username,
-            fullName: collab.user.full_name,
-            avatar: collab.user.avatar_url,
-          },
-          createdAt: collab.created_at,
-        })) || [],
-      })) || [];
-
-      return {
-        data: workspaces,
-        message: 'Shared workspaces retrieved successfully',
-        success: true,
-      };
+      // Get current user's workspaces which include those shared via collaboration
+      return this.getUserWorkspaces();
     } catch (error) {
-      handleSupabaseError(error);
+      console.error('Get shared workspaces error:', error);
       throw error;
     }
   }
 
   /**
    * Remove collaborator from workspace
+   * NOTE: Use the collaborators-remove endpoint instead
    */
   static async removeCollaborator(workspaceId: string, userId: string): Promise<ApiResponse<void>> {
-    try {
-      const { error } = await supabase
-        .from('workspace_collaborators')
-        .delete()
-        .eq('workspace_id', workspaceId)
-        .eq('user_id', userId);
+    console.warn('removeCollaborator is deprecated. Use collaborators-remove endpoint instead.');
+    
+    throw new Error('Use collaborators-remove endpoint to remove collaborators');
+  }
 
-      if (error) throw error;
+  /**
+   * Check if user can edit workspace
+   */
+  static canEditWorkspace(workspace: Workspace, userId: string): boolean {
+    // User can edit if they are the owner
+    if (workspace.userId === userId) return true;
+    
+    // Or if they are a collaborator with EDITOR or OWNER role
+    const collaborator = workspace.collaborators?.find(c => c.userId === userId);
+    return collaborator?.role === 'EDITOR' || collaborator?.role === 'owner';
+  }
 
-      return {
-        data: undefined,
-        message: 'Collaborator removed successfully',
-        success: true,
-      };
-    } catch (error) {
-      handleSupabaseError(error);
-      throw error;
-    }
+  /**
+   * Check if user can view workspace
+   */
+  static canViewWorkspace(workspace: Workspace, userId: string | null): boolean {
+    // Public workspaces can be viewed by anyone
+    if (workspace.isPublic) return true;
+    
+    // Private workspaces require authentication
+    if (!userId) return false;
+    
+    // User can view if they are the owner
+    if (workspace.userId === userId) return true;
+    
+    // Or if they are a collaborator
+    return workspace.collaborators?.some(c => c.userId === userId) || false;
   }
 }

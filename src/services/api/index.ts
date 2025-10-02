@@ -6,9 +6,19 @@ import { NotificationsService } from './notifications';
 import { ActivitiesService } from './activities';
 import { StatsService } from './stats';
 import { WorkspacesService } from './workspaces';
+import { CollaboratorsService } from './collaborators';
 
 // Re-export all services
-export { AuthService, IdeasService, UsersService, NotificationsService, ActivitiesService, StatsService, WorkspacesService };
+export { 
+  AuthService, 
+  IdeasService, 
+  UsersService, 
+  NotificationsService, 
+  ActivitiesService, 
+  StatsService, 
+  WorkspacesService,
+  CollaboratorsService,
+};
 
 // Re-export transformers and types
 export {
@@ -84,4 +94,10 @@ export const supabaseApi = {
   shareWorkspace: WorkspacesService.shareWorkspace,
   getSharedWorkspaces: WorkspacesService.getSharedWorkspaces,
   removeCollaborator: WorkspacesService.removeCollaborator,
+
+  // Collaborators
+  addCollaborator: CollaboratorsService.addCollaborator,
+  removeIdeaCollaborator: CollaboratorsService.removeCollaborator,
+  getIdeaCollaboratorsList: CollaboratorsService.getCollaborators,
+  updateCollaboratorRole: CollaboratorsService.updateCollaboratorRole,
 };
