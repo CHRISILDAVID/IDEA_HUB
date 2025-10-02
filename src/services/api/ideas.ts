@@ -114,7 +114,29 @@ export class IdeasService {
    */
   static async updateIdea(id: string, ideaData: Partial<Idea>): Promise<ApiResponse<Idea>> {
     try {
-      throw new Error('Update idea not yet implemented in migration');
+      const response = await apiClient.put('ideas-update', {
+        ideaId: id,
+        title: ideaData.title,
+        description: ideaData.description,
+        content: ideaData.content,
+        canvasData: ideaData.canvasData,
+        tags: ideaData.tags,
+        category: ideaData.category,
+        license: ideaData.license,
+        visibility: ideaData.visibility?.toUpperCase(),
+        language: ideaData.language,
+        status: ideaData.status?.toUpperCase(),
+      });
+
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to update idea');
+      }
+
+      return {
+        data: response.data,
+        message: response.message || 'Idea updated successfully',
+        success: true,
+      };
     } catch (error) {
       console.error('Error updating idea:', error);
       throw error;
@@ -126,7 +148,17 @@ export class IdeasService {
    */
   static async deleteIdea(id: string): Promise<ApiResponse<void>> {
     try {
-      throw new Error('Delete idea not yet implemented in migration');
+      const response = await apiClient.delete(`ideas-delete?id=${id}`);
+
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to delete idea');
+      }
+
+      return {
+        data: undefined,
+        message: response.message || 'Idea deleted successfully',
+        success: true,
+      };
     } catch (error) {
       console.error('Error deleting idea:', error);
       throw error;
