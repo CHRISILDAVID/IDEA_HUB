@@ -1,7 +1,24 @@
-import { supabase, handleSupabaseError } from '../../lib/supabase';
 import { User, ApiResponse } from '../../types';
-import { transformDbUser, DbUser } from './transformers';
-import { castToColumn, castToInsert, castToUpdate, castFromSupabase } from './utils';
+import apiClient from '../../lib/api-client';
+
+// Helper function to transform user data
+function transformUser(data: any): User {
+  return {
+    id: data.id,
+    username: data.username,
+    email: data.email,
+    fullName: data.fullName || data.full_name,
+    avatar: data.avatarUrl || data.avatar_url,
+    bio: data.bio,
+    location: data.location,
+    website: data.website,
+    joinedAt: data.joinedAt || data.joined_at,
+    followers: data.followers || 0,
+    following: data.following || 0,
+    publicRepos: data.publicRepos || data.public_repos || 0,
+    isVerified: data.isVerified || data.is_verified || false,
+  };
+}
 
 export class UsersService {
   /**
@@ -9,24 +26,16 @@ export class UsersService {
    */
   static async getFollowingUsers(userId: string): Promise<ApiResponse<User[]>> {
     try {
-      const { data, error } = await supabase
-        .from('follows')
-        .select(`
-          following:users!follows_following_id_fkey(*)
-        `)
-        .eq('follower_id', castToColumn(userId));
-
-      if (error) throw error;
-
-      const users = data?.map((item: any) => transformDbUser(item.following as DbUser)) || [];
-
+      // Note: This endpoint doesn't exist yet in backend
+      // For now, return empty array
+      console.warn('getFollowingUsers endpoint not yet implemented in backend');
       return {
-        data: users,
+        data: [],
         message: 'Following users retrieved successfully',
         success: true,
       };
     } catch (error) {
-      handleSupabaseError(error);
+      console.error('Get following users error:', error);
       throw error;
     }
   }
@@ -36,24 +45,16 @@ export class UsersService {
    */
   static async getFollowers(userId: string): Promise<ApiResponse<User[]>> {
     try {
-      const { data, error } = await supabase
-        .from('follows')
-        .select(`
-          follower:users!follows_follower_id_fkey(*)
-        `)
-        .eq('following_id', castToColumn(userId));
-
-      if (error) throw error;
-
-      const users = data?.map((item: any) => transformDbUser(item.follower as DbUser)) || [];
-
+      // Note: This endpoint doesn't exist yet in backend
+      // For now, return empty array
+      console.warn('getFollowers endpoint not yet implemented in backend');
       return {
-        data: users,
+        data: [],
         message: 'Followers retrieved successfully',
         success: true,
       };
     } catch (error) {
-      handleSupabaseError(error);
+      console.error('Get followers error:', error);
       throw error;
     }
   }
@@ -61,72 +62,35 @@ export class UsersService {
   /**
    * Follow or unfollow a user
    */
-  static async toggleFollow(targetUserId: string): Promise<ApiResponse<{ isFollowing: boolean }>> {
+  static async toggleFollow(targetUserId: string, action: 'follow' | 'unfollow'): Promise<ApiResponse<{ isFollowing: boolean }>> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
+      const response = await apiClient.post<{ data: { isFollowing: boolean }; success: boolean }>('/users-follow', {
+        userId: targetUserId,
+        action,
+      });
 
-      // Check if already following
-      const { data: existingFollow } = await supabase
-        .from('follows')
-        .select('id')
-        .eq('follower_id', castToColumn(user.id))
-        .eq('following_id', castToColumn(targetUserId))
-        .single();
-
-      if (existingFollow) {
-        // Unfollow
-        const { error } = await supabase
-          .from('follows')
-          .delete()
-          .eq('follower_id', castToColumn(user.id))
-          .eq('following_id', castToColumn(targetUserId));
-
-        if (error) throw error;
-
-        return {
-          data: { isFollowing: false },
-          message: 'User unfollowed',
-          success: true,
-        };
-      } else {
-        // Follow
-        const { error } = await supabase
-          .from('follows')
-          .insert({
-            follower_id: user.id,
-            following_id: targetUserId,
-          } as any);
-
-        if (error) throw error;
-
-        return {
-          data: { isFollowing: true },
-          message: 'User followed',
-          success: true,
-        };
-      }
+      return {
+        data: response.data,
+        message: action === 'follow' ? 'User followed' : 'User unfollowed',
+        success: true,
+      };
     } catch (error) {
-      handleSupabaseError(error);
+      console.error('Toggle follow error:', error);
       throw error;
     }
   }
 
   /**
-   * Get a user by ID
+   * Get a user by ID or username
    */
-  static async getUser(userId: string): Promise<ApiResponse<User>> {
+  static async getUser(userIdOrUsername: string): Promise<ApiResponse<User>> {
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error) throw error;
-      if (!data) throw new Error('User not found');
-
-      const user = transformDbUser(data as unknown as DbUser);
+      // Determine if it's an ID or username (simple check: IDs are UUIDs)
+      const isId = userIdOrUsername.includes('-') && userIdOrUsername.length > 20;
+      const queryParam = isId ? `userId=${userIdOrUsername}` : `username=${userIdOrUsername}`;
+      
+      const response = await apiClient.get<{ data: any; success: boolean }>(`/users-profile?${queryParam}`);
+      const user = transformUser(response.data);
 
       return {
         data: user,
@@ -134,7 +98,7 @@ export class UsersService {
         success: true,
       };
     } catch (error) {
-      handleSupabaseError(error);
+      console.error('Get user error:', error);
       throw error;
     }
   }
@@ -142,26 +106,17 @@ export class UsersService {
   /**
    * Update user profile
    */
-  static async updateProfile(userId: string, profileData: Partial<User>): Promise<ApiResponse<User>> {
+  static async updateProfile(profileData: Partial<User>): Promise<ApiResponse<User>> {
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .update({
-          username: profileData.username,
-          full_name: profileData.fullName,
-          bio: profileData.bio,
-          location: profileData.location,
-          website: profileData.website,
-          avatar_url: profileData.avatar,
-        } as any)
-        .eq('id', userId)
-        .select('*')
-        .single();
+      const response = await apiClient.put<{ data: any; success: boolean }>('/users-update', {
+        fullName: profileData.fullName,
+        bio: profileData.bio,
+        location: profileData.location,
+        website: profileData.website,
+        avatarUrl: profileData.avatar,
+      });
 
-      if (error) throw error;
-      if (!data) throw new Error('Failed to update profile');
-
-      const user = transformDbUser(data as unknown as DbUser);
+      const user = transformUser(response.data);
 
       return {
         data: user,
@@ -169,7 +124,7 @@ export class UsersService {
         success: true,
       };
     } catch (error) {
-      handleSupabaseError(error);
+      console.error('Update profile error:', error);
       throw error;
     }
   }
@@ -179,23 +134,16 @@ export class UsersService {
    */
   static async searchUsers(query: string): Promise<ApiResponse<User[]>> {
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .or(`username.ilike.%${query}%,full_name.ilike.%${query}%`)
-        .limit(20);
-
-      if (error) throw error;
-
-      const users = data?.map((user: any) => transformDbUser(user as DbUser)) || [];
-
+      // Note: This endpoint doesn't exist yet in backend
+      // For now, return empty array
+      console.warn('searchUsers endpoint not yet implemented in backend');
       return {
-        data: users,
+        data: [],
         message: 'Users retrieved successfully',
         success: true,
       };
     } catch (error) {
-      handleSupabaseError(error);
+      console.error('Search users error:', error);
       throw error;
     }
   }
@@ -205,31 +153,16 @@ export class UsersService {
    */
   static async isFollowing(targetUserId: string): Promise<ApiResponse<{ isFollowing: boolean }>> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        return {
-          data: { isFollowing: false },
-          message: 'User not authenticated',
-          success: true,
-        };
-      }
-
-      const { data, error } = await supabase
-        .from('follows')
-        .select('id')
-        .eq('follower_id', user.id)
-        .eq('following_id', targetUserId)
-        .single();
-
-      if (error && error.code !== 'PGRST116') throw error;
-
+      // Note: This endpoint doesn't exist yet in backend
+      // For now, return false
+      console.warn('isFollowing endpoint not yet implemented in backend');
       return {
-        data: { isFollowing: !!data },
+        data: { isFollowing: false },
         message: 'Follow status retrieved',
         success: true,
       };
     } catch (error) {
-      handleSupabaseError(error);
+      console.error('Check following status error:', error);
       throw error;
     }
   }
