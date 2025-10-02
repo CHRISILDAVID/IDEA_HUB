@@ -1,9 +1,37 @@
 import { User, Idea } from '../../types';
 import { Database } from '../../types/database';
+import type { User as PrismaUser, Idea as PrismaIdea } from '@prisma/client';
 
 export type DbUser = Database['public']['Tables']['users']['Row'];
 export type DbIdea = Database['public']['Tables']['ideas']['Row'];
 export type DbComment = Database['public']['Tables']['comments']['Row'];
+
+/**
+ * Transform Prisma user object to application user object
+ */
+export const transformPrismaUser = (prismaUser: PrismaUser): User => {
+  // Count followers and following from relations (if loaded)
+  // For now, use 0 as default - these can be computed separately
+  const followers = 0;
+  const following = 0;
+  const publicRepos = 0;
+
+  return {
+    id: prismaUser.id,
+    username: prismaUser.username,
+    email: prismaUser.email,
+    fullName: prismaUser.fullName,
+    avatar: prismaUser.avatarUrl || undefined,
+    bio: prismaUser.bio || undefined,
+    location: prismaUser.location || undefined,
+    website: prismaUser.website || undefined,
+    joinedAt: prismaUser.joinedAt.toISOString(),
+    followers,
+    following,
+    publicRepos,
+    isVerified: prismaUser.isVerified,
+  };
+};
 
 /**
  * Transform database user object to application user object
