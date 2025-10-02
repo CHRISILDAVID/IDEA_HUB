@@ -22,12 +22,10 @@ export {
 
 // Re-export transformers and types
 export {
-  transformDbUser,
-  transformDbIdea,
+  transformApiUser,
+  transformApiIdea,
+  transformApiWorkspace,
   createBasicIdea,
-  type DbUser,
-  type DbIdea,
-  type DbComment,
 } from './transformers';
 
 // Re-export utilities
