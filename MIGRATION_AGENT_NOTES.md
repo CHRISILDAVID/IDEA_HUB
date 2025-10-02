@@ -36,8 +36,40 @@
 - [x] Updated .gitignore for Prisma
 - [x] Created .env.example with database configuration
 
+### ⚠️ Critical Architecture Decision
+
+**Issue Discovered:** Prisma Client and JWT libraries are server-side only and cannot run in the browser. The current app is a pure client-side React application.
+
+**Solution Options:**
+1. **Backend API Server (Recommended):** Create an Express/Fastify backend API that uses Prisma and JWT
+2. **Serverless Functions:** Use Netlify/Vercel functions to create API endpoints
+3. **Keep Supabase Auth:** Use Prisma for data but keep Supabase for authentication
+
+**Current Approach:**
+We have created the Prisma schema and infrastructure. However, Prisma and JWT are server-side libraries and cannot run in the browser.
+
+**Selected Solution: Serverless Functions (Netlify)**
+- Created backend API documentation
+- Started implementing Netlify Functions for API endpoints
+- This approach works well with the existing Netlify deployment
+
+**Implementation Status:**
+- ✅ Prisma schema created
+- ✅ Auth utilities created (JWT, bcrypt)
+- ✅ Backend API architecture documented
+- 🔄 Serverless functions being implemented
+- ⏳ Need to complete all API endpoints
+- ⏳ Need to update frontend to use serverless functions
+
+**Next Steps:**
+1. Complete serverless function implementations for all endpoints
+2. Create API client in frontend to call serverless functions
+3. Update all service files to use API client instead of direct Prisma/Supabase calls
+
 ### 🔄 In Progress
-- [ ] None
+- [x] Architecture decision made: Using Netlify Serverless Functions
+- [ ] Implementing serverless functions for all API endpoints
+- [ ] Creating frontend API client
 
 ### ⏳ Pending
 - [ ] Everything else (see detailed TODO list below)
