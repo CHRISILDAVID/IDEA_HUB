@@ -1,9 +1,9 @@
-import { supabase, handleSupabaseError } from '../../lib/supabase';
 import { ApiResponse } from '../../types';
 
 export class StatsService {
   /**
    * Get category statistics
+   * NOTE: Backend endpoint not yet implemented
    */
   static async getCategoryStats(): Promise<ApiResponse<Array<{
     name: string;
@@ -11,226 +11,101 @@ export class StatsService {
     trending: boolean;
   }>>> {
     try {
-      // Get idea counts by category
-      const { data: categoryData, error } = await supabase
-        .from('ideas')
-        .select('category')
-        .eq('visibility', 'public' as any)
-        .eq('status', 'published' as any);
-
-      if (error) throw error;
-
-      // Count ideas by category
-      const categoryCounts: { [key: string]: number } = {};
-      categoryData?.forEach(idea => {
-        categoryCounts[idea.category] = (categoryCounts[idea.category] || 0) + 1;
-      });
-
-      // Get trending categories (categories with ideas created in last week)
-      const oneWeekAgo = new Date();
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-
-      const { data: trendingData, error: trendingError } = await supabase
-        .from('ideas')
-        .select('category')
-        .eq('visibility', 'public' as any)
-        .eq('status', 'published' as any)
-        .gte('created_at', oneWeekAgo.toISOString());
-
-      if (trendingError) throw trendingError;
-
-      const trendingCategories = new Set(trendingData?.map(idea => idea.category) || []);
-
-      // Format response
-      const categories = Object.entries(categoryCounts).map(([name, count]) => ({
-        name,
-        count,
-        trending: trendingCategories.has(name),
-      }));
-
+      console.warn('getCategoryStats endpoint not yet implemented in backend');
+      
+      // Return empty array for now
       return {
-        data: categories,
+        data: [],
         message: 'Category stats retrieved successfully',
         success: true,
       };
     } catch (error) {
-      handleSupabaseError(error);
+      console.error('Get category stats error:', error);
       throw error;
     }
   }
 
   /**
-   * Get popular/trending statistics
+   * Get popular ideas and users statistics
+   * NOTE: Backend endpoint not yet implemented
    */
   static async getPopularStats(): Promise<ApiResponse<{
-    totalViews: number;
-    starsThisWeek: number;
-    forksThisWeek: number;
-    newIdeas: number;
+    popularIdeas: Array<{ id: string; title: string; stars: number }>;
+    popularUsers: Array<{ id: string; username: string; followers: number }>;
   }>> {
     try {
-      const oneWeekAgo = new Date();
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-
-      // Get stars this week
-      const { count: starsThisWeek, error: starsError } = await supabase
-        .from('stars')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', oneWeekAgo.toISOString());
-
-      if (starsError) throw starsError;
-
-      // Get new ideas this week
-      const { count: newIdeas, error: newIdeasError } = await supabase
-        .from('ideas')
-        .select('*', { count: 'exact', head: true })
-        .eq('visibility', 'public' as any)
-        .eq('status', 'published' as any)
-        .gte('created_at', oneWeekAgo.toISOString());
-
-      if (newIdeasError) throw newIdeasError;
-
-      // Get forks this week (ideas created as forks)
-      const { count: forksThisWeek, error: forksError } = await supabase
-        .from('ideas')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_fork', true as any)
-        .gte('created_at', oneWeekAgo.toISOString());
-
-      if (forksError) throw forksError;
-
-      // Mock total views (would need view tracking implementation)
-      const totalViews = (starsThisWeek || 0) * 150 + (newIdeas || 0) * 100;
-
+      console.warn('getPopularStats endpoint not yet implemented in backend');
+      
       return {
         data: {
-          totalViews,
-          starsThisWeek: starsThisWeek || 0,
-          forksThisWeek: forksThisWeek || 0,
-          newIdeas: newIdeas || 0,
+          popularIdeas: [],
+          popularUsers: [],
         },
         message: 'Popular stats retrieved successfully',
         success: true,
       };
     } catch (error) {
-      handleSupabaseError(error);
+      console.error('Get popular stats error:', error);
       throw error;
     }
   }
 
   /**
-   * Get user dashboard statistics
+   * Get dashboard statistics for a user
+   * NOTE: Backend endpoint not yet implemented
    */
   static async getUserDashboardStats(userId: string): Promise<ApiResponse<{
-    totalIdeas: number;
-    totalStars: number;
-    totalForks: number;
-    totalViews: number;
-    recentActivity: any[];
+    ideasCount: number;
+    starsCount: number;
+    forksCount: number;
+    followersCount: number;
+    followingCount: number;
   }>> {
     try {
-      // Get user's ideas
-      const { data: userIdeas, error: ideasError } = await supabase
-        .from('ideas')
-        .select('id, stars, forks')
-        .eq('author_id', userId as any);
-
-      if (ideasError) throw ideasError;
-
-      const totalIdeas = userIdeas?.length || 0;
-      const totalStars = userIdeas?.reduce((sum, idea) => sum + (idea.stars || 0), 0) || 0;
-      const totalForks = userIdeas?.reduce((sum, idea) => sum + (idea.forks || 0), 0) || 0;
-      const totalViews = totalIdeas * 150; // Mock calculation
-
-      // Get recent activity (simplified)
-      const recentActivity: any[] = [];
-
+      console.warn('getUserDashboardStats endpoint not yet implemented in backend');
+      
       return {
         data: {
-          totalIdeas,
-          totalStars,
-          totalForks,
-          totalViews,
-          recentActivity,
+          ideasCount: 0,
+          starsCount: 0,
+          forksCount: 0,
+          followersCount: 0,
+          followingCount: 0,
         },
         message: 'User dashboard stats retrieved successfully',
         success: true,
       };
     } catch (error) {
-      handleSupabaseError(error);
+      console.error('Get user dashboard stats error:', error);
       throw error;
     }
   }
 
   /**
-   * Get platform statistics
+   * Get platform-wide statistics
+   * NOTE: Backend endpoint not yet implemented
    */
   static async getPlatformStats(): Promise<ApiResponse<{
     totalIdeas: number;
-    activeUsers: number;
-    ideasThisWeek: number;
-    totalCollaborations: number;
+    totalUsers: number;
+    totalStars: number;
+    totalForks: number;
   }>> {
     try {
-      // Get total ideas count
-      const { count: totalIdeas, error: ideasError } = await supabase
-        .from('ideas')
-        .select('*', { count: 'exact', head: true })
-        .eq('visibility', 'public' as any)
-        .eq('status', 'published' as any);
-
-      if (ideasError) throw ideasError;
-
-      // Get active users count (users who have created ideas)
-      const { count: activeUsers, error: usersError } = await supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true });
-
-      if (usersError) throw usersError;
-
-      // Get ideas created this week
-      const oneWeekAgo = new Date();
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      console.warn('getPlatformStats endpoint not yet implemented in backend');
       
-      const { count: ideasThisWeek, error: weekError } = await supabase
-        .from('ideas')
-        .select('*', { count: 'exact', head: true })
-        .eq('visibility', 'public' as any)
-        .eq('status', 'published' as any)
-        .gte('created_at', oneWeekAgo.toISOString());
-
-      if (weekError) throw weekError;
-
-      // Get total collaborations (forks + stars)
-      const { count: totalStars, error: starsError } = await supabase
-        .from('stars')
-        .select('*', { count: 'exact', head: true });
-
-      if (starsError) throw starsError;
-
-      const { data: forksData, error: forksError } = await supabase
-        .from('ideas')
-        .select('forks')
-        .eq('visibility', 'public' as any)
-        .eq('status', 'published' as any);
-
-      if (forksError) throw forksError;
-
-      const totalForks = forksData?.reduce((sum, idea) => sum + (idea.forks || 0), 0) || 0;
-      const totalCollaborations = (totalStars || 0) + totalForks;
-
       return {
         data: {
-          totalIdeas: totalIdeas || 0,
-          activeUsers: activeUsers || 0,
-          ideasThisWeek: ideasThisWeek || 0,
-          totalCollaborations,
+          totalIdeas: 0,
+          totalUsers: 0,
+          totalStars: 0,
+          totalForks: 0,
         },
         message: 'Platform stats retrieved successfully',
         success: true,
       };
     } catch (error) {
-      handleSupabaseError(error);
+      console.error('Get platform stats error:', error);
       throw error;
     }
   }
