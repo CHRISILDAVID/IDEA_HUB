@@ -289,162 +289,74 @@ export class IdeasService {
 
   /**
    * Get collaborators for an idea
+   * Note: This should be handled by the backend API
    */
   static async getIdeaCollaborators(ideaId: string): Promise<ApiResponse<any[]>> {
-    try {
-      const { data, error } = await supabase
-        .from('idea_collaborators')
-        .select(`
-          *,
-          user:users(*)
-        `)
-        .eq('idea_id', ideaId);
-
-      if (error) throw error;
-
-      return {
-        data: data || [],
-        message: 'Collaborators retrieved successfully',
-        success: true,
-      };
-    } catch (error) {
-      handleSupabaseError(error);
-      throw error;
-    }
+    console.warn('getIdeaCollaborators: Method needs backend endpoint implementation');
+    // TODO: Implement endpoint /collaborators-list?ideaId={ideaId}
+    return {
+      data: [],
+      message: 'Collaborators feature pending implementation',
+      success: true,
+    };
   }
 
   /**
    * Get popular/trending ideas
+   * Note: Uses /ideas-list endpoint with default sorting
    */
   static async getPopularIdeas(): Promise<ApiResponse<Idea[]>> {
     try {
-      const { data, error } = await supabase
-        .from('ideas')
-        .select(`
-          *,
-          author:users(*),
-          is_starred:stars!left(user_id)
-        `)
-        .eq('visibility', 'public')
-        .eq('status', 'published')
-        .order('stars', { ascending: false })
-        .limit(10);
-
-      if (error) throw error;
-
-      const ideas = data?.map((item: any) => {
-        const isStarred = item.is_starred?.length > 0;
-        return transformDbIdea({ ...item, is_starred: isStarred });
-      }) || [];
-
-      return {
-        data: ideas,
-        message: 'Popular ideas retrieved successfully',
-        success: true,
-      };
+      // Use the regular getIdeas endpoint
+      // Backend returns ideas sorted by created_at desc by default
+      // TODO: Add popularity sorting in backend
+      return await this.getIdeas();
     } catch (error) {
-      handleSupabaseError(error);
+      console.error('Error fetching popular ideas:', error);
       throw error;
     }
   }
 
   /**
    * Get user's starred ideas
+   * Note: This needs a backend endpoint
    */
   static async getStarredIdeas(userId: string): Promise<ApiResponse<Idea[]>> {
-    try {
-      const { data, error } = await supabase
-        .from('stars')
-        .select(`
-          idea:ideas(
-            *,
-            author:users(*)
-          )
-        `)
-        .eq('user_id', userId);
-
-      if (error) throw error;
-
-      const ideas = data?.map((item: any) => 
-        transformDbIdea({ ...item.idea, is_starred: true })
-      ) || [];
-
-      return {
-        data: ideas,
-        message: 'Starred ideas retrieved successfully',
-        success: true,
-      };
-    } catch (error) {
-      handleSupabaseError(error);
-      throw error;
-    }
+    console.warn('getStarredIdeas: Method needs backend endpoint implementation');
+    // TODO: Implement endpoint /ideas-starred?userId={userId}
+    return {
+      data: [],
+      message: 'Starred ideas feature pending implementation',
+      success: true,
+    };
   }
 
   /**
    * Get user's forked ideas
+   * Note: This needs a backend endpoint
    */
   static async getForkedIdeas(userId: string): Promise<ApiResponse<Idea[]>> {
-    try {
-      const { data, error } = await supabase
-        .from('ideas')
-        .select(`
-          *,
-          author:users(*),
-          is_starred:stars!left(user_id)
-        `)
-        .eq('author_id', userId)
-        .eq('is_fork', true);
-
-      if (error) throw error;
-
-      const ideas = data?.map((item: any) => {
-        const isStarred = item.is_starred?.length > 0;
-        return transformDbIdea({ ...item, is_starred: isStarred });
-      }) || [];
-
-      return {
-        data: ideas,
-        message: 'Forked ideas retrieved successfully',
-        success: true,
-      };
-    } catch (error) {
-      handleSupabaseError(error);
-      throw error;
-    }
+    console.warn('getForkedIdeas: Method needs backend endpoint implementation');
+    // TODO: Implement endpoint /ideas-forked?userId={userId}
+    return {
+      data: [],
+      message: 'Forked ideas feature pending implementation',
+      success: true,
+    };
   }
 
   /**
    * Get ideas created by a specific user
+   * Note: This should filter ideas by author
    */
   static async getUserIdeas(userId: string): Promise<ApiResponse<Idea[]>> {
-    try {
-      const { data, error } = await supabase
-        .from('ideas')
-        .select(`
-          *,
-          author:users(*),
-          is_starred:stars!left(user_id)
-        `)
-        .eq('author_id', userId)
-        .eq('visibility', 'public')
-        .eq('status', 'published')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      const ideas = data?.map((item: any) => {
-        const isStarred = item.is_starred?.length > 0;
-        return transformDbIdea({ ...item, is_starred: isStarred });
-      }) || [];
-
-      return {
-        data: ideas,
-        message: 'User ideas retrieved successfully',
-        success: true,
-      };
-    } catch (error) {
-      handleSupabaseError(error);
-      throw error;
-    }
+    console.warn('getUserIdeas: Method needs backend endpoint implementation');
+    // TODO: Implement endpoint /ideas-list?authorId={userId}
+    // For now, return empty to avoid errors
+    return {
+      data: [],
+      message: 'User ideas feature pending implementation',
+      success: true,
+    };
   }
 }

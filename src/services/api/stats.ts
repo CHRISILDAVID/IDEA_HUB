@@ -87,9 +87,9 @@ export class StatsService {
    */
   static async getPlatformStats(): Promise<ApiResponse<{
     totalIdeas: number;
-    totalUsers: number;
-    totalStars: number;
-    totalForks: number;
+    activeUsers: number;
+    ideasThisWeek: number;
+    totalCollaborations: number;
   }>> {
     try {
       console.warn('getPlatformStats endpoint not yet implemented in backend');
@@ -97,9 +97,9 @@ export class StatsService {
       return {
         data: {
           totalIdeas: 0,
-          totalUsers: 0,
-          totalStars: 0,
-          totalForks: 0,
+          activeUsers: 0,
+          ideasThisWeek: 0,
+          totalCollaborations: 0,
         },
         message: 'Platform stats retrieved successfully',
         success: true,

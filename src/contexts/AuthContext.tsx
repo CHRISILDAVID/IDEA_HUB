@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '../lib/supabase';
-import { supabaseApi } from '../services/api/index';
+import { AuthService } from '../services/api/auth';
 import { User } from '../types';
-import { authCookieManager } from '../utils/authCookieManager';
+import { getStoredToken, removeStoredToken, isTokenExpired } from '../lib/auth-client';
 
 interface AuthContextType {
   user: User | null;
@@ -26,40 +25,49 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     let mounted = true;
-    let authSubscription: any;
 
-    // Enhanced session initialization with cookie support
+    // Initialize authentication from stored token
     const initializeAuth = async () => {
       try {
         console.log('AuthContext: Initializing authentication...');
         
-        // First, try to get the current session from cookies
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        const token = getStoredToken();
         
-        if (sessionError) {
-          console.error('AuthContext: Error getting session:', sessionError);
+        if (!token) {
+          console.log('AuthContext: No token found');
+          if (mounted) {
+            setUser(null);
+            setIsLoading(false);
+          }
+          return;
         }
 
-        if (mounted && session?.user) {
-          console.log('AuthContext: Found existing session for user:', session.user.id);
-          try {
-            const currentUser = await supabaseApi.getCurrentUser();
-            if (mounted) {
-              setUser(currentUser);
-              console.log('AuthContext: User loaded from session:', currentUser?.username);
-            }
-          } catch (userError) {
-            console.error('AuthContext: Error getting current user:', userError);
-            if (mounted) {
-              setUser(null);
-            }
+        // Check if token is expired
+        if (isTokenExpired(token)) {
+          console.log('AuthContext: Token expired, clearing');
+          removeStoredToken();
+          if (mounted) {
+            setUser(null);
+            setIsLoading(false);
           }
-        } else {
-          console.log('AuthContext: No existing session found');
+          return;
+        }
+
+        // Token exists and is valid, fetch current user
+        console.log('AuthContext: Found valid token, fetching user');
+        try {
+          const currentUser = await AuthService.getCurrentUser();
+          if (mounted) {
+            setUser(currentUser);
+            console.log('AuthContext: User loaded:', currentUser?.username);
+          }
+        } catch (userError) {
+          console.error('AuthContext: Error getting current user:', userError);
+          // Token might be invalid, clear it
+          removeStoredToken();
           if (mounted) {
             setUser(null);
           }
@@ -72,130 +80,74 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } finally {
         if (mounted) {
           setIsLoading(false);
-          setIsInitialized(true);
         }
       }
     };
 
-    // Set up auth state change listener
-    const setupAuthListener = () => {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (event, session) => {
-          console.log('AuthContext: Auth state changed:', event, session?.user?.id);
-          
-          if (!mounted) return;
-
-          try {
-            if (event === 'SIGNED_IN' && session?.user) {
-              console.log('AuthContext: User signed in, loading profile...');
-              const currentUser = await supabaseApi.getCurrentUser();
-              if (mounted) {
-                setUser(currentUser);
-                setIsLoading(false);
-              }
-            } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-              console.log('AuthContext: Token refreshed, updating user...');
-              const currentUser = await supabaseApi.getCurrentUser();
-              if (mounted) {
-                setUser(currentUser);
-              }
-            } else if (event === 'SIGNED_OUT') {
-              console.log('AuthContext: User signed out');
-              if (mounted) {
-                setUser(null);
-                setIsLoading(false);
-              }
-            }
-          } catch (error) {
-            console.error('AuthContext: Error handling auth state change:', error);
-            if (mounted) {
-              setUser(null);
-              setIsLoading(false);
-            }
-          }
-        }
-      );
-      
-      authSubscription = subscription;
-    };
-
-    // Initialize authentication
-    initializeAuth().then(() => {
-      if (mounted) {
-        setupAuthListener();
-      }
-    });
+    initializeAuth();
 
     return () => {
       mounted = false;
-      if (authSubscription) {
-        authSubscription.unsubscribe();
-      }
     };
   }, []);
 
   const login = async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
     try {
-      await supabaseApi.signIn(email, password);
-      // User will be set via onAuthStateChange
+      const user = await AuthService.signIn(email, password);
+      setUser(user);
+      console.log('AuthContext: User signed in:', user.username);
     } catch (error) {
-      setIsLoading(false);
+      console.error('AuthContext: Login error:', error);
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const register = async (userData: RegisterData): Promise<void> => {
     setIsLoading(true);
     try {
-      await supabaseApi.signUp(userData.email, userData.password, {
+      const user = await AuthService.signUp(userData.email, userData.password, {
         username: userData.username,
         fullName: userData.fullName,
       });
-      // User will be set via onAuthStateChange after email confirmation
-      setIsLoading(false);
+      setUser(user);
+      console.log('AuthContext: User registered:', user.username);
     } catch (error) {
-      setIsLoading(false);
+      console.error('AuthContext: Registration error:', error);
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const logout = (): void => {
-    // Use the cookie manager for comprehensive logout
-    authCookieManager.clearAuth();
-    // User will be cleared via onAuthStateChange
+  const logout = async (): Promise<void> => {
+    try {
+      await AuthService.signOut();
+      setUser(null);
+      console.log('AuthContext: User signed out');
+    } catch (error) {
+      console.error('AuthContext: Logout error:', error);
+      // Clear user even if logout fails
+      setUser(null);
+    }
   };
 
   const updateProfile = async (userData: Partial<User>): Promise<void> => {
     if (!user) return;
     setIsLoading(true);
     try {
-      // Map from frontend User type to database fields
-      const dbUserData: any = {
-        ...(userData.username && { username: userData.username }),
-        ...(userData.fullName && { full_name: userData.fullName }),
-        ...(userData.avatar && { avatar_url: userData.avatar }),
-        ...(userData.bio && { bio: userData.bio }),
-        ...(userData.location && { location: userData.location }),
-        ...(userData.website && { website: userData.website }),
-        updated_at: new Date().toISOString()
-      };
-
-      const { error } = await supabase
-        .from('users')
-        .update(dbUserData)
-        .eq('id', user.id as any);
-
-      if (error) {
-        console.error('Error updating profile:', error);
-        throw error;
-      }
-
+      // Use the UsersService to update the profile
+      const { UsersService } = await import('../services/api/users');
+      await UsersService.updateProfile(user.id, userData);
+      
       // Fetch updated user data
-      const updatedUser = await supabaseApi.getCurrentUser();
+      const updatedUser = await AuthService.getCurrentUser();
       setUser(updatedUser);
+      console.log('AuthContext: Profile updated');
     } catch (error) {
-      console.error('Error updating profile:', error);
+      console.error('AuthContext: Error updating profile:', error);
       throw error;
     } finally {
       setIsLoading(false);

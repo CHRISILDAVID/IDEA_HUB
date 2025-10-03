@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { getStoredToken, isTokenExpired } from '../lib/auth-client';
 
 interface AuthPersistenceProps {
   children: React.ReactNode;
 }
 
 /**
- * Component that ensures authentication state is properly restored from cookies
+ * Component that ensures authentication state is properly restored from localStorage
  * Should wrap the entire app to handle auth persistence
  */
 export const AuthPersistence: React.FC<AuthPersistenceProps> = ({ children }) => {
@@ -15,20 +15,21 @@ export const AuthPersistence: React.FC<AuthPersistenceProps> = ({ children }) =>
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        console.log('AuthPersistence: Initializing auth state from cookies...');
+        console.log('AuthPersistence: Checking stored authentication...');
         
-        // This will automatically read from cookies and set up the session
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const token = getStoredToken();
         
-        if (error) {
-          console.error('AuthPersistence: Error getting session:', error);
-        } else if (session) {
-          console.log('AuthPersistence: Session restored from cookies for user:', session.user?.id);
+        if (token) {
+          if (isTokenExpired(token)) {
+            console.log('AuthPersistence: Token expired');
+          } else {
+            console.log('AuthPersistence: Valid token found');
+          }
         } else {
-          console.log('AuthPersistence: No session found in cookies');
+          console.log('AuthPersistence: No stored token');
         }
       } catch (error) {
-        console.error('AuthPersistence: Error initializing auth persistence:', error);
+        console.error('AuthPersistence: Error checking auth:', error);
       } finally {
         setIsInitialized(true);
       }
@@ -43,7 +44,7 @@ export const AuthPersistence: React.FC<AuthPersistenceProps> = ({ children }) =>
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Restoring authentication...</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Initializing...</p>
         </div>
       </div>
     );

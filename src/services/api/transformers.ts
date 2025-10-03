@@ -1,85 +1,74 @@
 import { User, Idea } from '../../types';
-import { Database } from '../../types/database';
-import type { User as PrismaUser, Idea as PrismaIdea } from '@prisma/client';
-
-export type DbUser = Database['public']['Tables']['users']['Row'];
-export type DbIdea = Database['public']['Tables']['ideas']['Row'];
-export type DbComment = Database['public']['Tables']['comments']['Row'];
 
 /**
- * Transform Prisma user object to application user object
+ * Transform Prisma/API user object to application user object
+ * Handles both camelCase (from API) and snake_case (legacy) formats
  */
-export const transformPrismaUser = (prismaUser: PrismaUser): User => {
-  // Count followers and following from relations (if loaded)
-  // For now, use 0 as default - these can be computed separately
-  const followers = 0;
-  const following = 0;
-  const publicRepos = 0;
-
+export const transformApiUser = (apiUser: any): User => {
   return {
-    id: prismaUser.id,
-    username: prismaUser.username,
-    email: prismaUser.email,
-    fullName: prismaUser.fullName,
-    avatar: prismaUser.avatarUrl || undefined,
-    bio: prismaUser.bio || undefined,
-    location: prismaUser.location || undefined,
-    website: prismaUser.website || undefined,
-    joinedAt: prismaUser.joinedAt.toISOString(),
-    followers,
-    following,
-    publicRepos,
-    isVerified: prismaUser.isVerified,
+    id: apiUser.id,
+    username: apiUser.username,
+    email: apiUser.email,
+    fullName: apiUser.fullName || apiUser.full_name,
+    avatar: apiUser.avatarUrl || apiUser.avatar_url,
+    bio: apiUser.bio,
+    location: apiUser.location,
+    website: apiUser.website,
+    joinedAt: apiUser.joinedAt || apiUser.joined_at,
+    followers: apiUser.followers || 0,
+    following: apiUser.following || 0,
+    publicRepos: apiUser.publicRepos || apiUser.public_repos || 0,
+    isVerified: apiUser.isVerified || apiUser.is_verified || false,
   };
 };
 
 /**
- * Transform database user object to application user object
+ * Transform Prisma/API idea object to application idea object
+ * Handles both camelCase (from API) and snake_case (legacy) formats
  */
-export const transformDbUser = (dbUser: DbUser): User => ({
-  id: dbUser.id,
-  username: dbUser.username,
-  email: dbUser.email,
-  fullName: dbUser.full_name,
-  avatar: dbUser.avatar_url,
-  bio: dbUser.bio,
-  location: dbUser.location,
-  website: dbUser.website,
-  joinedAt: dbUser.joined_at,
-  followers: dbUser.followers,
-  following: dbUser.following,
-  publicRepos: dbUser.public_repos,
-  isVerified: dbUser.is_verified,
-});
+export const transformApiIdea = (apiIdea: any): Idea => {
+  return {
+    id: apiIdea.id,
+    title: apiIdea.title,
+    description: apiIdea.description,
+    content: apiIdea.content,
+    canvasData: apiIdea.canvasData || apiIdea.canvas_data,
+    author: transformApiUser(apiIdea.author),
+    tags: apiIdea.tags || [],
+    category: apiIdea.category,
+    license: apiIdea.license,
+    version: apiIdea.version || '1.0.0',
+    stars: apiIdea.stars || 0,
+    forks: apiIdea.forks || 0,
+    isStarred: apiIdea.isStarred || apiIdea.is_starred || false,
+    isFork: apiIdea.isFork || apiIdea.is_fork || false,
+    forkedFrom: apiIdea.forkedFrom || apiIdea.forked_from || null,
+    visibility: (apiIdea.visibility?.toLowerCase() || 'public') as 'public' | 'private',
+    createdAt: apiIdea.createdAt || apiIdea.created_at,
+    updatedAt: apiIdea.updatedAt || apiIdea.updated_at,
+    collaborators: apiIdea.collaborators || [],
+    comments: apiIdea.comments || [],
+    issues: [],
+    language: apiIdea.language || null,
+    status: (apiIdea.status?.toLowerCase() || 'published') as 'draft' | 'published' | 'archived',
+  };
+};
 
 /**
- * Transform database idea object to application idea object
+ * Transform Prisma/API workspace object to application workspace object
  */
-export const transformDbIdea = (dbIdea: DbIdea & { author: DbUser; is_starred?: boolean }): Idea => ({
-  id: dbIdea.id,
-  title: dbIdea.title,
-  description: dbIdea.description,
-  content: dbIdea.content,
-  canvasData: dbIdea.canvas_data,
-  author: transformDbUser(dbIdea.author),
-  tags: dbIdea.tags,
-  category: dbIdea.category,
-  license: dbIdea.license,
-  version: dbIdea.version,
-  stars: dbIdea.stars,
-  forks: dbIdea.forks,
-  isStarred: dbIdea.is_starred || false,
-  isFork: dbIdea.is_fork,
-  forkedFrom: dbIdea.forked_from,
-  visibility: dbIdea.visibility as 'public' | 'private',
-  createdAt: dbIdea.created_at,
-  updatedAt: dbIdea.updated_at,
-  collaborators: [], // TODO: Implement collaborators
-  comments: [], // TODO: Load comments separately
-  issues: [], // TODO: Implement issues
-  language: dbIdea.language,
-  status: dbIdea.status as 'draft' | 'published' | 'archived',
-});
+export const transformApiWorkspace = (apiWorkspace: any): any => {
+  return {
+    id: apiWorkspace.id,
+    name: apiWorkspace.name,
+    ideaId: apiWorkspace.ideaId || apiWorkspace.idea_id,
+    userId: apiWorkspace.userId || apiWorkspace.user_id,
+    content: apiWorkspace.content,
+    isPublic: apiWorkspace.isPublic || apiWorkspace.is_public,
+    createdAt: apiWorkspace.createdAt || apiWorkspace.created_at,
+    updatedAt: apiWorkspace.updatedAt || apiWorkspace.updated_at,
+  };
+};
 
 /**
  * Create a basic idea object from minimal data (for activity feed)
@@ -87,26 +76,27 @@ export const transformDbIdea = (dbIdea: DbIdea & { author: DbUser; is_starred?: 
 export const createBasicIdea = (data: {
   id: string;
   title: string;
-  author: DbUser;
-  created_at: string;
+  author: any;
+  created_at?: string;
+  createdAt?: string;
 }): Idea => ({
   id: data.id,
   title: data.title,
   description: '',
   content: '',
-  author: transformDbUser(data.author),
+  author: transformApiUser(data.author),
   tags: [],
   category: '',
   license: '',
-  version: '',
+  version: '1.0.0',
   stars: 0,
   forks: 0,
   isStarred: false,
   isFork: false,
   forkedFrom: null,
   visibility: 'public' as 'public' | 'private',
-  createdAt: data.created_at,
-  updatedAt: data.created_at,
+  createdAt: data.created_at || data.createdAt || new Date().toISOString(),
+  updatedAt: data.created_at || data.createdAt || new Date().toISOString(),
   collaborators: [],
   comments: [],
   issues: [],

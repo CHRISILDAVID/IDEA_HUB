@@ -4,12 +4,21 @@ import { Database } from '../types/database';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
+// Migration note: Supabase is being replaced with Prisma
+// This client is stubbed to prevent errors during migration
+const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
+
+if (!isSupabaseConfigured) {
+  console.warn('Supabase environment variables not configured. Using migration stub.');
 }
 
 // Create a browser client for client-side operations with enhanced cookie management
 export const createClient = () => {
+  // If Supabase is not configured, return a stub client
+  if (!isSupabaseConfigured) {
+    return createStubClient();
+  }
+  
   return createBrowserClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {
       get(name: string) {
@@ -83,3 +92,36 @@ export const handleSupabaseError = (error: any) => {
   console.error('Supabase error:', error);
   throw error;
 };
+
+/**
+ * Create a stub Supabase client for migration
+ * This prevents errors when Supabase env vars are not set
+ */
+function createStubClient() {
+  const stubAuth = {
+    getSession: async () => ({ data: { session: null }, error: null }),
+    onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+    signOut: async () => ({ error: null }),
+    signInWithPassword: async () => ({ data: { user: null, session: null }, error: new Error('Supabase not configured') }),
+    signUp: async () => ({ data: { user: null, session: null }, error: new Error('Supabase not configured') }),
+  };
+
+  return {
+    auth: stubAuth,
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          single: async () => ({ data: null, error: new Error('Supabase not configured') }),
+        }),
+      }),
+      update: () => ({
+        eq: async () => ({ data: null, error: new Error('Supabase not configured') }),
+      }),
+      insert: async () => ({ data: null, error: new Error('Supabase not configured') }),
+      delete: () => ({
+        eq: async () => ({ data: null, error: new Error('Supabase not configured') }),
+      }),
+    }),
+    rpc: async () => ({ data: null, error: new Error('Supabase not configured') }),
+  } as any;
+}
