@@ -6,16 +6,73 @@ A modern web application for creating, sharing, and collaborating on ideas with 
 
 ## 🚀 Quick Start
 
-### Development Server
-```bash
-# Install dependencies
-npm install
+### Prerequisites
+- **Node.js** 18+ and npm
+- **PostgreSQL** database
+- **Git** for version control
 
-# Start development server
-netlify dev
+### Environment Setup
+
+1. **Clone the repository**
+```bash
+git clone https://github.com/CHRISILDAVID/IDEA_HUB.git
+cd IDEA_HUB
 ```
 
-Open [http://localhost:8888](http://localhost:8888) in your browser.
+2. **Install dependencies**
+```bash
+npm install
+```
+
+3. **Configure environment variables**
+```bash
+# Copy the example environment file
+cp .env.example .env
+
+# Edit .env and update these values:
+# - DATABASE_URL: Your PostgreSQL connection string
+# - JWT_SECRET: A secure random string for JWT signing
+# - NODE_ENV: "development" or "production"
+```
+
+**Required Environment Variables:**
+```env
+# Database (PostgreSQL)
+DATABASE_URL="postgresql://username:password@host:5432/database?schema=public"
+
+# JWT Authentication
+JWT_SECRET="your-secure-secret-key-change-in-production"
+JWT_EXPIRES_IN="7d"
+
+# Application
+NODE_ENV="development"
+PORT="3000"
+```
+
+4. **Setup the database**
+```bash
+# Generate Prisma client
+npx prisma generate
+
+# Run database migrations
+npx prisma migrate dev
+
+# (Optional) Seed the database with sample data
+npx prisma db seed
+```
+
+5. **Start the development server**
+```bash
+# Using Netlify CLI (recommended)
+netlify dev
+
+# Or using Vite directly (frontend only)
+npm run dev
+```
+
+6. **Open your browser**
+
+Navigate to [http://localhost:8888](http://localhost:8888) (Netlify) or [http://localhost:5173](http://localhost:5173) (Vite only)
 
 ---
 
@@ -31,7 +88,8 @@ Complete documentation for testing all backend APIs:
 
 ### Project Status
 - **[Migration Progress Report](MIGRATION_PROGRESS_REPORT.md)** - Current project status
-- **[Phase 6-7 Completion](PHASE_6_7_COMPLETION_SUMMARY.md)** - Recent completions
+- **[Phase 8 Completion](PHASE_8_COMPLETION_SUMMARY.md)** - Route Protection & Middleware ✅ **NEW!**
+- **[Phase 6-7 Completion](PHASE_6_7_COMPLETION_SUMMARY.md)** - Data Transformers & Frontend Integration
 - **[Changelog](CHANGELOG.md)** - Version history
 
 ### Architecture
@@ -92,13 +150,36 @@ IDEA_HUB/
 ├── src/
 │   ├── components/        # React components
 │   ├── services/api/      # Frontend API services
-│   ├── lib/              # Utilities (API client, auth)
+│   ├── lib/               # Utilities & helpers
+│   │   ├── api-client.ts     # HTTP client for API calls
+│   │   ├── auth.ts           # JWT & password utilities
+│   │   ├── auth-client.ts    # Browser-safe auth utilities
+│   │   ├── middleware.ts     # 🆕 Request middleware utilities
+│   │   ├── authorization.ts  # 🆕 Permission checking helpers
+│   │   └── prisma.ts         # Prisma client singleton
 │   ├── pages/            # Page components
 │   └── contexts/         # React contexts
 ├── prisma/
 │   └── schema.prisma     # Database schema
 └── [Documentation files]
 ```
+
+### Key Backend Utilities (New in Phase 8)
+
+**`src/lib/middleware.ts`** - Request handling utilities:
+- `requireAuth()` - Enforce authentication
+- `optionalAuth()` - Support optional auth
+- `checkMethod()` - Validate HTTP methods
+- `validateQueryParams()` / `validateBodyFields()` - Input validation
+- `ErrorResponses.*` - Standard error responses
+- `successResponse()` / `createdResponse()` - Standard success responses
+
+**`src/lib/authorization.ts`** - Permission checking:
+- `canViewIdea()` / `canEditIdea()` / `canDeleteIdea()` - Idea permissions
+- `canViewWorkspace()` / `canEditWorkspace()` - Workspace permissions
+- `canAddCollaborators()` / `canAddMoreCollaborators()` - Collaborator permissions
+- `canForkIdea()` - Fork permissions
+- `sanitizeUser()` - Remove sensitive data from user objects
 
 ---
 
