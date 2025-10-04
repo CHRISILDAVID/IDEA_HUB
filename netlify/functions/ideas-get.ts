@@ -9,129 +9,104 @@
 
 import type { Handler, HandlerEvent } from '@netlify/functions';
 import prisma from '../../src/lib/prisma';
-import { verifyToken, extractTokenFromHeader } from '../../src/lib/auth';
+import {
+  checkMethod,
+  validateQueryParams,
+  optionalAuth,
+  successResponse,
+  ErrorResponses,
+} from '../../src/lib/middleware';
+import {
+  canViewIdea,
+  getIdeaWithCollaborators,
+  sanitizeUser,
+} from '../../src/lib/authorization';
 
 export const handler: Handler = async (event: HandlerEvent) => {
-  // Only allow GET
-  if (event.httpMethod !== 'GET') {
-    return {
-      statusCode: 405,
-      body: JSON.stringify({ error: 'Method not allowed' }),
-    };
-  }
+  // Check HTTP method
+  const methodError = checkMethod(event, ['GET']);
+  if (methodError) return methodError;
 
   try {
-    const ideaId = event.queryStringParameters?.id;
+    // Validate required parameters
+    const paramsError = validateQueryParams(event, ['id']);
+    if (paramsError) return paramsError;
 
-    if (!ideaId) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: 'Idea ID is required' }),
-      };
-    }
+    const ideaId = event.queryStringParameters!.id;
 
-    // Optional authentication
-    const authHeader = event.headers.authorization || event.headers.Authorization;
-    const token = extractTokenFromHeader(authHeader);
-    const payload = token ? verifyToken(token) : null;
+    // Optional authentication (works with or without auth)
+    const auth = optionalAuth(event);
+    const userId = auth?.userId || null;
 
     // Fetch the idea with relations
-    const idea = await prisma.idea.findUnique({
-      where: { id: ideaId },
-      include: {
-        author: true,
-        collaborators: {
-          include: {
-            user: true,
-          },
-        },
-        _count: {
-          select: {
-            starredBy: true,
-            comments: true,
-            forkIdeas: true,
-          },
-        },
-      },
-    });
+    const idea = await getIdeaWithCollaborators(ideaId);
 
     if (!idea) {
-      return {
-        statusCode: 404,
-        body: JSON.stringify({ error: 'Idea not found' }),
-      };
+      return ErrorResponses.notFound('Idea');
     }
 
-    // Check access permissions for private ideas
-    if (idea.visibility === 'PRIVATE') {
-      if (!payload) {
-        return {
-          statusCode: 401,
-          body: JSON.stringify({ error: 'Authentication required to view this idea' }),
-        };
-      }
-
-      // Check if user is author or collaborator
-      const isAuthor = idea.authorId === payload.userId;
-      const isCollaborator = idea.collaborators.some(c => c.userId === payload.userId);
-
-      if (!isAuthor && !isCollaborator) {
-        return {
-          statusCode: 403,
-          body: JSON.stringify({ error: 'You do not have permission to view this idea' }),
-        };
-      }
+    // Check access permissions
+    const permission = canViewIdea(idea, userId);
+    if (!permission.allowed) {
+      return userId 
+        ? ErrorResponses.forbidden(permission.reason)
+        : ErrorResponses.unauthorized(permission.reason);
     }
 
-    // Check if current user has starred this idea
-    let isStarred = false;
-    if (payload) {
-      const star = await prisma.star.findUnique({
-        where: {
-          userId_ideaId: {
-            userId: payload.userId,
-            ideaId: idea.id,
+    // Fetch additional data
+    const [author, collaborators, counts, isStarred] = await Promise.all([
+      prisma.user.findUnique({ where: { id: idea.authorId } }),
+      prisma.ideaCollaborator.findMany({
+        where: { ideaId: idea.id },
+        include: { user: true },
+      }),
+      prisma.idea.findUnique({
+        where: { id: idea.id },
+        select: {
+          _count: {
+            select: {
+              starredBy: true,
+              comments: true,
+              forkIdeas: true,
+            },
           },
         },
-      });
-      isStarred = !!star;
+      }),
+      userId
+        ? prisma.star.findUnique({
+            where: {
+              userId_ideaId: {
+                userId: userId,
+                ideaId: idea.id,
+              },
+            },
+          })
+        : Promise.resolve(null),
+    ]);
+
+    if (!author) {
+      return ErrorResponses.serverError('Idea author not found');
     }
 
     // Transform data
-    const { passwordHash: _, ...author } = idea.author;
-    const transformedCollaborators = idea.collaborators.map((collab) => {
-      const { passwordHash: __, ...user } = collab.user;
-      return {
-        ...collab,
-        user,
-      };
-    });
+    const transformedCollaborators = collaborators.map((collab) => ({
+      ...collab,
+      user: sanitizeUser(collab.user),
+    }));
 
-    const { _count, collaborators, ...ideaData } = idea;
-
-    return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        data: {
-          ...ideaData,
-          author,
-          collaborators: transformedCollaborators,
-          stars: _count.starredBy,
-          comments: _count.comments,
-          forks: _count.forkIdeas,
-          isStarred,
-        },
-        success: true,
-      }),
+    const responseData = {
+      ...idea,
+      author: sanitizeUser(author),
+      collaborators: transformedCollaborators,
+      stars: counts?._count.starredBy || 0,
+      comments: counts?._count.comments || 0,
+      forks: counts?._count.forkIdeas || 0,
+      isStarred: !!isStarred,
     };
+
+    return successResponse(responseData);
   } catch (error) {
     console.error('Get idea error:', error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Internal server error' }),
-    };
+    return ErrorResponses.serverError();
   }
 };
