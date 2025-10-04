@@ -7,59 +7,38 @@
 
 import type { Handler, HandlerEvent } from '@netlify/functions';
 import prisma from '../../src/lib/prisma';
-import { verifyToken, extractTokenFromHeader } from '../../src/lib/auth';
+import {
+  checkMethod,
+  requireAuth,
+  validateBodyFields,
+  successResponse,
+  ErrorResponses,
+} from '../../src/lib/middleware';
 
 export const handler: Handler = async (event: HandlerEvent) => {
-  // Only allow POST
-  if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      body: JSON.stringify({ error: 'Method not allowed' }),
-    };
-  }
+  // Check HTTP method
+  const methodError = checkMethod(event, ['POST']);
+  if (methodError) return methodError;
 
   try {
-    // Verify authentication
-    const authHeader = event.headers.authorization || event.headers.Authorization;
-    const token = extractTokenFromHeader(authHeader);
+    // Require authentication
+    const auth = requireAuth(event);
+    if ('statusCode' in auth) return auth;
 
-    if (!token) {
-      return {
-        statusCode: 401,
-        body: JSON.stringify({ error: 'Unauthorized' }),
-      };
-    }
+    const body = JSON.parse(event.body || '{}');
+    const { userId, action } = body;
 
-    const payload = verifyToken(token);
-    if (!payload) {
-      return {
-        statusCode: 401,
-        body: JSON.stringify({ error: 'Invalid token' }),
-      };
-    }
-
-    const { userId, action } = JSON.parse(event.body || '{}');
-
-    if (!userId || !action) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: 'User ID and action are required' }),
-      };
-    }
+    // Validate required fields
+    const validationError = validateBodyFields(body, ['userId', 'action']);
+    if (validationError) return validationError;
 
     if (action !== 'follow' && action !== 'unfollow') {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: 'Action must be "follow" or "unfollow"' }),
-      };
+      return ErrorResponses.badRequest('Action must be "follow" or "unfollow"');
     }
 
     // Can't follow yourself
-    if (userId === payload.userId) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: 'Cannot follow yourself' }),
-      };
+    if (userId === auth.userId) {
+      return ErrorResponses.badRequest('Cannot follow yourself');
     }
 
     // Check if target user exists
@@ -68,17 +47,14 @@ export const handler: Handler = async (event: HandlerEvent) => {
     });
 
     if (!targetUser) {
-      return {
-        statusCode: 404,
-        body: JSON.stringify({ error: 'User not found' }),
-      };
+      return ErrorResponses.notFound('User');
     }
 
     if (action === 'follow') {
       // Create follow relationship
       await prisma.follow.create({
         data: {
-          followerId: payload.userId,
+          followerId: auth.userId,
           followingId: userId,
         },
       });
@@ -89,44 +65,30 @@ export const handler: Handler = async (event: HandlerEvent) => {
           userId: userId,
           type: 'FOLLOW',
           message: `Someone started following you`,
-          relatedUserId: payload.userId,
-          relatedUrl: `/users/${payload.userId}`,
+          relatedUserId: auth.userId,
+          relatedUrl: `/users/${auth.userId}`,
         },
       });
 
-      return {
-        statusCode: 200,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          success: true,
-          message: 'User followed successfully',
-          isFollowing: true,
-        }),
-      };
+      return successResponse(
+        { isFollowing: true },
+        'User followed successfully'
+      );
     } else {
       // Remove follow relationship
       await prisma.follow.delete({
         where: {
           followerId_followingId: {
-            followerId: payload.userId,
+            followerId: auth.userId,
             followingId: userId,
           },
         },
       });
 
-      return {
-        statusCode: 200,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          success: true,
-          message: 'User unfollowed successfully',
-          isFollowing: false,
-        }),
-      };
+      return successResponse(
+        { isFollowing: false },
+        'User unfollowed successfully'
+      );
     }
   } catch (error) {
     console.error('Follow/unfollow user error:', error);
@@ -135,22 +97,13 @@ export const handler: Handler = async (event: HandlerEvent) => {
     if (error instanceof Error && 'code' in error) {
       const prismaError = error as any;
       if (prismaError.code === 'P2002') {
-        return {
-          statusCode: 400,
-          body: JSON.stringify({ error: 'Already following this user' }),
-        };
+        return ErrorResponses.badRequest('Already following this user');
       }
       if (prismaError.code === 'P2025') {
-        return {
-          statusCode: 400,
-          body: JSON.stringify({ error: 'Not following this user' }),
-        };
+        return ErrorResponses.badRequest('Not following this user');
       }
     }
 
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Internal server error' }),
-    };
+    return ErrorResponses.serverError();
   }
 };
