@@ -8,75 +8,46 @@
 
 import type { Handler, HandlerEvent } from '@netlify/functions';
 import prisma from '../../src/lib/prisma';
-import { verifyToken, extractTokenFromHeader } from '../../src/lib/auth';
+import {
+  checkMethod,
+  requireAuth,
+  successResponse,
+  ErrorResponses,
+} from '../../src/lib/middleware';
+import {
+  canEditWorkspace,
+  canChangeWorkspaceVisibility,
+  getWorkspaceWithIdea,
+  sanitizeUser,
+} from '../../src/lib/authorization';
 
 export const handler: Handler = async (event: HandlerEvent) => {
-  // Only allow PUT
-  if (event.httpMethod !== 'PUT') {
-    return {
-      statusCode: 405,
-      body: JSON.stringify({ error: 'Method not allowed' }),
-    };
-  }
+  // Check HTTP method
+  const methodError = checkMethod(event, ['PUT']);
+  if (methodError) return methodError;
 
   try {
-    // Verify authentication
-    const authHeader = event.headers.authorization || event.headers.Authorization;
-    const token = extractTokenFromHeader(authHeader);
-
-    if (!token) {
-      return {
-        statusCode: 401,
-        body: JSON.stringify({ error: 'Unauthorized' }),
-      };
-    }
-
-    const payload = verifyToken(token);
-    if (!payload) {
-      return {
-        statusCode: 401,
-        body: JSON.stringify({ error: 'Invalid token' }),
-      };
-    }
+    // Require authentication
+    const auth = requireAuth(event);
+    if ('statusCode' in auth) return auth;
 
     const { workspaceId, content, name, thumbnail, isPublic } = JSON.parse(event.body || '{}');
 
     if (!workspaceId) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: 'Workspace ID is required' }),
-      };
+      return ErrorResponses.badRequest('Workspace ID is required');
     }
 
     // Fetch workspace with idea and collaborators
-    const workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceId },
-      include: {
-        idea: {
-          include: {
-            collaborators: true,
-          },
-        },
-      },
-    });
+    const workspace = await getWorkspaceWithIdea(workspaceId);
 
     if (!workspace) {
-      return {
-        statusCode: 404,
-        body: JSON.stringify({ error: 'Workspace not found' }),
-      };
+      return ErrorResponses.notFound('Workspace');
     }
 
-    // Check if user has edit permissions
-    const isOwner = workspace.userId === payload.userId;
-    const collaborator = workspace.idea.collaborators.find(c => c.userId === payload.userId);
-    const isEditor = collaborator?.role === 'EDITOR' || collaborator?.role === 'OWNER';
-
-    if (!isOwner && !isEditor) {
-      return {
-        statusCode: 403,
-        body: JSON.stringify({ error: 'You do not have permission to edit this workspace' }),
-      };
+    // Check edit permission
+    const editPermission = canEditWorkspace(workspace, auth.userId);
+    if (!editPermission.allowed) {
+      return ErrorResponses.forbidden(editPermission.reason);
     }
 
     // Build update data
@@ -84,8 +55,17 @@ export const handler: Handler = async (event: HandlerEvent) => {
     if (content !== undefined) updateData.content = content;
     if (name !== undefined) updateData.name = name;
     if (thumbnail !== undefined) updateData.thumbnail = thumbnail;
+    
     // Only owner can change visibility
-    if (isPublic !== undefined && isOwner) updateData.isPublic = isPublic;
+    if (isPublic !== undefined) {
+      const visibilityPermission = canChangeWorkspaceVisibility(workspace, auth.userId);
+      if (visibilityPermission.allowed) {
+        updateData.isPublic = isPublic;
+      } else if (workspace.userId !== auth.userId) {
+        // If user tried to change visibility but isn't owner, return error
+        return ErrorResponses.forbidden('Only the workspace owner can change visibility');
+      }
+    }
 
     // Update workspace
     const updatedWorkspace = await prisma.workspace.update({
@@ -101,30 +81,17 @@ export const handler: Handler = async (event: HandlerEvent) => {
     });
 
     // Transform data
-    const { passwordHash: _, ...author } = updatedWorkspace.idea.author;
-
-    return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
+    const responseData = {
+      ...updatedWorkspace,
+      idea: {
+        ...updatedWorkspace.idea,
+        author: sanitizeUser(updatedWorkspace.idea.author),
       },
-      body: JSON.stringify({
-        data: {
-          ...updatedWorkspace,
-          idea: {
-            ...updatedWorkspace.idea,
-            author,
-          },
-        },
-        success: true,
-        message: 'Workspace updated successfully',
-      }),
     };
+
+    return successResponse(responseData, 'Workspace updated successfully');
   } catch (error) {
     console.error('Update workspace error:', error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Internal server error' }),
-    };
+    return ErrorResponses.serverError();
   }
 };

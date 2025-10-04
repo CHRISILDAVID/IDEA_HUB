@@ -8,45 +8,30 @@
 
 import type { Handler, HandlerEvent } from '@netlify/functions';
 import prisma from '../../src/lib/prisma';
-import { verifyToken, extractTokenFromHeader } from '../../src/lib/auth';
+import {
+  checkMethod,
+  validateQueryParams,
+  requireAuth,
+  successResponse,
+  ErrorResponses,
+} from '../../src/lib/middleware';
+import { canDeleteIdea } from '../../src/lib/authorization';
 
 export const handler: Handler = async (event: HandlerEvent) => {
-  // Only allow DELETE
-  if (event.httpMethod !== 'DELETE') {
-    return {
-      statusCode: 405,
-      body: JSON.stringify({ error: 'Method not allowed' }),
-    };
-  }
+  // Check HTTP method
+  const methodError = checkMethod(event, ['DELETE']);
+  if (methodError) return methodError;
 
   try {
-    // Verify authentication
-    const authHeader = event.headers.authorization || event.headers.Authorization;
-    const token = extractTokenFromHeader(authHeader);
+    // Require authentication
+    const auth = requireAuth(event);
+    if ('statusCode' in auth) return auth;
 
-    if (!token) {
-      return {
-        statusCode: 401,
-        body: JSON.stringify({ error: 'Unauthorized' }),
-      };
-    }
+    // Validate required parameters
+    const paramsError = validateQueryParams(event, ['id']);
+    if (paramsError) return paramsError;
 
-    const payload = verifyToken(token);
-    if (!payload) {
-      return {
-        statusCode: 401,
-        body: JSON.stringify({ error: 'Invalid token' }),
-      };
-    }
-
-    const ideaId = event.queryStringParameters?.id;
-
-    if (!ideaId) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: 'Idea ID is required' }),
-      };
-    }
+    const ideaId = event.queryStringParameters!.id;
 
     // Fetch the idea to check ownership
     const idea = await prisma.idea.findUnique({
@@ -54,18 +39,13 @@ export const handler: Handler = async (event: HandlerEvent) => {
     });
 
     if (!idea) {
-      return {
-        statusCode: 404,
-        body: JSON.stringify({ error: 'Idea not found' }),
-      };
+      return ErrorResponses.notFound('Idea');
     }
 
-    // Only the author can delete
-    if (idea.authorId !== payload.userId) {
-      return {
-        statusCode: 403,
-        body: JSON.stringify({ error: 'Only the author can delete this idea' }),
-      };
+    // Check delete permission
+    const permission = canDeleteIdea(idea, auth.userId);
+    if (!permission.allowed) {
+      return ErrorResponses.forbidden(permission.reason);
     }
 
     // Delete the idea (cascade will handle workspace, collaborators, etc.)
@@ -73,21 +53,12 @@ export const handler: Handler = async (event: HandlerEvent) => {
       where: { id: ideaId },
     });
 
-    return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        success: true,
-        message: 'Idea deleted successfully',
-      }),
-    };
+    return successResponse(
+      { ideaId },
+      'Idea deleted successfully'
+    );
   } catch (error) {
     console.error('Delete idea error:', error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Internal server error' }),
-    };
+    return ErrorResponses.serverError();
   }
 };

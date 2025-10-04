@@ -9,100 +9,75 @@
 
 import type { Handler, HandlerEvent } from '@netlify/functions';
 import prisma from '../../src/lib/prisma';
-import { verifyToken, extractTokenFromHeader } from '../../src/lib/auth';
+import {
+  checkMethod,
+  requireAuth,
+  validateBodyFields,
+  createdResponse,
+  ErrorResponses,
+} from '../../src/lib/middleware';
+import {
+  canAddCollaborators,
+  canAddMoreCollaborators,
+  getIdeaWithCollaborators,
+  sanitizeUser,
+} from '../../src/lib/authorization';
 
 export const handler: Handler = async (event: HandlerEvent) => {
-  // Only allow POST
-  if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      body: JSON.stringify({ error: 'Method not allowed' }),
-    };
-  }
+  // Check HTTP method
+  const methodError = checkMethod(event, ['POST']);
+  if (methodError) return methodError;
 
   try {
-    // Verify authentication
-    const authHeader = event.headers.authorization || event.headers.Authorization;
-    const token = extractTokenFromHeader(authHeader);
+    // Require authentication
+    const auth = requireAuth(event);
+    if ('statusCode' in auth) return auth;
 
-    if (!token) {
-      return {
-        statusCode: 401,
-        body: JSON.stringify({ error: 'Unauthorized' }),
-      };
-    }
+    const body = JSON.parse(event.body || '{}');
+    const { ideaId, userId, role } = body;
 
-    const payload = verifyToken(token);
-    if (!payload) {
-      return {
-        statusCode: 401,
-        body: JSON.stringify({ error: 'Invalid token' }),
-      };
-    }
+    // Validate required fields
+    const validationError = validateBodyFields(body, ['ideaId', 'userId']);
+    if (validationError) return validationError;
 
-    const { ideaId, userId, role } = JSON.parse(event.body || '{}');
-
-    if (!ideaId || !userId) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: 'Idea ID and User ID are required' }),
-      };
-    }
-
-    // Fetch the idea to check ownership
-    const idea = await prisma.idea.findUnique({
-      where: { id: ideaId },
-      include: {
-        collaborators: true,
-      },
-    });
+    // Fetch the idea with collaborators
+    const idea = await getIdeaWithCollaborators(ideaId);
 
     if (!idea) {
-      return {
-        statusCode: 404,
-        body: JSON.stringify({ error: 'Idea not found' }),
-      };
+      return ErrorResponses.notFound('Idea');
     }
 
-    // Only the author can add collaborators
-    if (idea.authorId !== payload.userId) {
-      return {
-        statusCode: 403,
-        body: JSON.stringify({ error: 'Only the idea author can add collaborators' }),
-      };
+    // Check if current user can add collaborators
+    const addPermission = canAddCollaborators(idea, auth.userId);
+    if (!addPermission.allowed) {
+      return ErrorResponses.forbidden(addPermission.reason);
     }
 
     // Check if user is trying to add themselves
-    if (userId === payload.userId) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: 'Cannot add yourself as a collaborator' }),
-      };
+    if (userId === auth.userId) {
+      return ErrorResponses.badRequest('Cannot add yourself as a collaborator');
     }
 
-    // CRITICAL CONSTRAINT: Check if already has 3 collaborators (excluding author)
-    const collaboratorCount = idea.collaborators.length;
-    if (collaboratorCount >= 3) {
+    // Check if already has max collaborators
+    const maxPermission = canAddMoreCollaborators(idea);
+    if (!maxPermission.allowed) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ 
-          error: 'Maximum of 3 collaborators allowed per idea',
-          currentCount: collaboratorCount,
+        body: JSON.stringify({
+          error: maxPermission.reason,
+          currentCount: idea.collaborators.length,
           maxAllowed: 3,
         }),
       };
     }
 
-    // Check if user already exists
+    // Check if target user exists
     const targetUser = await prisma.user.findUnique({
       where: { id: userId },
     });
 
     if (!targetUser) {
-      return {
-        statusCode: 404,
-        body: JSON.stringify({ error: 'User not found' }),
-      };
+      return ErrorResponses.notFound('User');
     }
 
     // Check if already a collaborator
@@ -116,10 +91,7 @@ export const handler: Handler = async (event: HandlerEvent) => {
     });
 
     if (existingCollaborator) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: 'User is already a collaborator' }),
-      };
+      return ErrorResponses.badRequest('User is already a collaborator');
     }
 
     // Add the collaborator
@@ -140,36 +112,28 @@ export const handler: Handler = async (event: HandlerEvent) => {
         userId: userId,
         type: 'MENTION',
         message: `You have been added as a collaborator to "${idea.title}"`,
-        relatedUserId: payload.userId,
+        relatedUserId: auth.userId,
         relatedIdeaId: ideaId,
         relatedUrl: `/ideas/${ideaId}`,
       },
     });
 
-    // Transform user data
-    const { passwordHash: _, ...user } = collaborator.user;
-
-    return {
-      statusCode: 201,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        data: {
-          ...collaborator,
-          user,
-        },
-        success: true,
-        message: 'Collaborator added successfully',
-        collaboratorCount: collaboratorCount + 1,
-        maxAllowed: 3,
-      }),
+    // Transform response data
+    const responseData = {
+      ...collaborator,
+      user: sanitizeUser(collaborator.user),
     };
+
+    return createdResponse(
+      {
+        ...responseData,
+        collaboratorCount: idea.collaborators.length + 1,
+        maxAllowed: 3,
+      },
+      'Collaborator added successfully'
+    );
   } catch (error) {
     console.error('Add collaborator error:', error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Internal server error' }),
-    };
+    return ErrorResponses.serverError();
   }
 };

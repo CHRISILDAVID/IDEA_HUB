@@ -9,109 +9,68 @@
 
 import type { Handler, HandlerEvent } from '@netlify/functions';
 import prisma from '../../src/lib/prisma';
-import { verifyToken, extractTokenFromHeader } from '../../src/lib/auth';
+import {
+  checkMethod,
+  validateQueryParams,
+  optionalAuth,
+  successResponse,
+  ErrorResponses,
+} from '../../src/lib/middleware';
+import {
+  canViewWorkspace,
+  getWorkspaceWithIdea,
+  sanitizeUser,
+} from '../../src/lib/authorization';
 
 export const handler: Handler = async (event: HandlerEvent) => {
-  // Only allow GET
-  if (event.httpMethod !== 'GET') {
-    return {
-      statusCode: 405,
-      body: JSON.stringify({ error: 'Method not allowed' }),
-    };
-  }
+  // Check HTTP method
+  const methodError = checkMethod(event, ['GET']);
+  if (methodError) return methodError;
 
   try {
-    const workspaceId = event.queryStringParameters?.id;
+    // Validate required parameters
+    const paramsError = validateQueryParams(event, ['id']);
+    if (paramsError) return paramsError;
 
-    if (!workspaceId) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: 'Workspace ID is required' }),
-      };
-    }
+    const workspaceId = event.queryStringParameters!.id;
 
     // Optional authentication
-    const authHeader = event.headers.authorization || event.headers.Authorization;
-    const token = extractTokenFromHeader(authHeader);
-    const payload = token ? verifyToken(token) : null;
+    const auth = optionalAuth(event);
+    const userId = auth?.userId || null;
 
     // Fetch workspace with related idea and collaborators
-    const workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceId },
-      include: {
-        idea: {
-          include: {
-            author: true,
-            collaborators: {
-              include: {
-                user: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    const workspace = await getWorkspaceWithIdea(workspaceId);
 
     if (!workspace) {
-      return {
-        statusCode: 404,
-        body: JSON.stringify({ error: 'Workspace not found' }),
-      };
+      return ErrorResponses.notFound('Workspace');
     }
 
     // Check access permissions
-    if (!workspace.isPublic) {
-      if (!payload) {
-        return {
-          statusCode: 401,
-          body: JSON.stringify({ error: 'Authentication required to view this workspace' }),
-        };
-      }
-
-      // Check if user is owner or collaborator
-      const isOwner = workspace.userId === payload.userId;
-      const isCollaborator = workspace.idea.collaborators.some(c => c.userId === payload.userId);
-
-      if (!isOwner && !isCollaborator) {
-        return {
-          statusCode: 403,
-          body: JSON.stringify({ error: 'You do not have permission to view this workspace' }),
-        };
-      }
+    const permission = canViewWorkspace(workspace, userId);
+    if (!permission.allowed) {
+      return userId
+        ? ErrorResponses.forbidden(permission.reason)
+        : ErrorResponses.unauthorized(permission.reason);
     }
 
     // Transform data
-    const { passwordHash: _, ...author } = workspace.idea.author;
-    const transformedCollaborators = workspace.idea.collaborators.map((collab) => {
-      const { passwordHash: __, ...user } = collab.user;
-      return {
-        ...collab,
-        user,
-      };
-    });
+    const transformedCollaborators = workspace.idea.collaborators.map((collab) => ({
+      ...collab,
+      user: sanitizeUser(collab.user),
+    }));
 
-    return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
+    const responseData = {
+      ...workspace,
+      idea: {
+        ...workspace.idea,
+        author: sanitizeUser(workspace.idea.author),
+        collaborators: transformedCollaborators,
       },
-      body: JSON.stringify({
-        data: {
-          ...workspace,
-          idea: {
-            ...workspace.idea,
-            author,
-            collaborators: transformedCollaborators,
-          },
-        },
-        success: true,
-      }),
     };
+
+    return successResponse(responseData);
   } catch (error) {
     console.error('Get workspace error:', error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Internal server error' }),
-    };
+    return ErrorResponses.serverError();
   }
 };

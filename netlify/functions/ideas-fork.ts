@@ -10,47 +10,44 @@
 
 import type { Handler, HandlerEvent } from '@netlify/functions';
 import prisma from '../../src/lib/prisma';
-import { verifyToken, extractTokenFromHeader } from '../../src/lib/auth';
+import {
+  checkMethod,
+  requireAuth,
+  validateBodyFields,
+  createdResponse,
+  ErrorResponses,
+} from '../../src/lib/middleware';
+import {
+  canForkIdea,
+  getIdeaWithCollaborators,
+  sanitizeUser,
+} from '../../src/lib/authorization';
 
 export const handler: Handler = async (event: HandlerEvent) => {
-  // Only allow POST
-  if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      body: JSON.stringify({ error: 'Method not allowed' }),
-    };
-  }
+  // Check HTTP method
+  const methodError = checkMethod(event, ['POST']);
+  if (methodError) return methodError;
 
   try {
-    // Verify authentication
-    const authHeader = event.headers.authorization || event.headers.Authorization;
-    const token = extractTokenFromHeader(authHeader);
+    // Require authentication
+    const auth = requireAuth(event);
+    if ('statusCode' in auth) return auth;
 
-    if (!token) {
-      return {
-        statusCode: 401,
-        body: JSON.stringify({ error: 'Unauthorized' }),
-      };
+    const body = JSON.parse(event.body || '{}');
+    const { ideaId, newTitle, newDescription } = body;
+
+    // Validate required fields
+    const validationError = validateBodyFields(body, ['ideaId']);
+    if (validationError) return validationError;
+
+    // Fetch the original idea with workspace and collaborators
+    const originalIdeaWithCollabs = await getIdeaWithCollaborators(ideaId);
+
+    if (!originalIdeaWithCollabs) {
+      return ErrorResponses.notFound('Idea');
     }
 
-    const payload = verifyToken(token);
-    if (!payload) {
-      return {
-        statusCode: 401,
-        body: JSON.stringify({ error: 'Invalid token' }),
-      };
-    }
-
-    const { ideaId, newTitle, newDescription } = JSON.parse(event.body || '{}');
-
-    if (!ideaId) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: 'Idea ID is required' }),
-      };
-    }
-
-    // Fetch the original idea with workspace
+    // Fetch workspace separately
     const originalIdea = await prisma.idea.findUnique({
       where: { id: ideaId },
       include: {
@@ -59,30 +56,13 @@ export const handler: Handler = async (event: HandlerEvent) => {
     });
 
     if (!originalIdea) {
-      return {
-        statusCode: 404,
-        body: JSON.stringify({ error: 'Idea not found' }),
-      };
+      return ErrorResponses.notFound('Idea');
     }
 
-    // Check if idea is public or user has access
-    if (originalIdea.visibility === 'PRIVATE') {
-      const isAuthor = originalIdea.authorId === payload.userId;
-      const isCollaborator = await prisma.ideaCollaborator.findUnique({
-        where: {
-          ideaId_userId: {
-            ideaId: originalIdea.id,
-            userId: payload.userId,
-          },
-        },
-      });
-
-      if (!isAuthor && !isCollaborator) {
-        return {
-          statusCode: 403,
-          body: JSON.stringify({ error: 'Cannot fork a private idea without access' }),
-        };
-      }
+    // Check fork permission
+    const forkPermission = canForkIdea(originalIdeaWithCollabs, auth.userId);
+    if (!forkPermission.allowed) {
+      return ErrorResponses.forbidden(forkPermission.reason);
     }
 
     // Create forked idea and workspace atomically
@@ -94,7 +74,7 @@ export const handler: Handler = async (event: HandlerEvent) => {
           description: newDescription || originalIdea.description,
           content: originalIdea.content,
           canvasData: originalIdea.canvasData,
-          authorId: payload.userId,
+          authorId: auth.userId,
           tags: originalIdea.tags,
           category: originalIdea.category,
           license: originalIdea.license,
@@ -114,7 +94,7 @@ export const handler: Handler = async (event: HandlerEvent) => {
         data: {
           name: forkedIdea.title,
           ideaId: forkedIdea.id,
-          userId: payload.userId,
+          userId: auth.userId,
           content: originalIdea.workspace?.content || { elements: [], appState: {} },
           isPublic: true,
         },
@@ -130,31 +110,31 @@ export const handler: Handler = async (event: HandlerEvent) => {
         },
       });
 
+      // Create notification for original author
+      await tx.notification.create({
+        data: {
+          userId: originalIdea.authorId,
+          type: 'FORK',
+          message: `Someone forked your idea "${originalIdea.title}"`,
+          relatedUserId: auth.userId,
+          relatedIdeaId: forkedIdea.id,
+          relatedUrl: `/ideas/${forkedIdea.id}`,
+        },
+      });
+
       return { forkedIdea, forkedWorkspace };
     });
 
-    // Transform user data
-    const { passwordHash: _, ...author } = result.forkedIdea.author;
-
-    return {
-      statusCode: 201,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        data: {
-          ...result.forkedIdea,
-          author,
-        },
-        success: true,
-        message: 'Idea forked successfully',
-      }),
+    // Transform response data
+    const responseData = {
+      ...result.forkedIdea,
+      author: sanitizeUser(result.forkedIdea.author),
+      workspace: result.forkedWorkspace,
     };
+
+    return createdResponse(responseData, 'Idea forked successfully');
   } catch (error) {
     console.error('Fork idea error:', error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Internal server error' }),
-    };
+    return ErrorResponses.serverError();
   }
 };

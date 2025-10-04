@@ -8,36 +8,26 @@
 
 import type { Handler, HandlerEvent } from '@netlify/functions';
 import prisma from '../../src/lib/prisma';
-import { verifyToken, extractTokenFromHeader } from '../../src/lib/auth';
+import {
+  checkMethod,
+  requireAuth,
+  successResponse,
+  ErrorResponses,
+} from '../../src/lib/middleware';
+import {
+  canEditIdea,
+  sanitizeUser,
+} from '../../src/lib/authorization';
 
 export const handler: Handler = async (event: HandlerEvent) => {
-  // Only allow PUT
-  if (event.httpMethod !== 'PUT') {
-    return {
-      statusCode: 405,
-      body: JSON.stringify({ error: 'Method not allowed' }),
-    };
-  }
+  // Check HTTP method
+  const methodError = checkMethod(event, ['PUT']);
+  if (methodError) return methodError;
 
   try {
-    // Verify authentication
-    const authHeader = event.headers.authorization || event.headers.Authorization;
-    const token = extractTokenFromHeader(authHeader);
-
-    if (!token) {
-      return {
-        statusCode: 401,
-        body: JSON.stringify({ error: 'Unauthorized' }),
-      };
-    }
-
-    const payload = verifyToken(token);
-    if (!payload) {
-      return {
-        statusCode: 401,
-        body: JSON.stringify({ error: 'Invalid token' }),
-      };
-    }
+    // Require authentication
+    const auth = requireAuth(event);
+    if ('statusCode' in auth) return auth; // Auth failed, return error response
 
     const {
       ideaId,
@@ -54,10 +44,7 @@ export const handler: Handler = async (event: HandlerEvent) => {
     } = JSON.parse(event.body || '{}');
 
     if (!ideaId) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: 'Idea ID is required' }),
-      };
+      return ErrorResponses.badRequest('Idea ID is required');
     }
 
     // Fetch the idea to check ownership
@@ -66,18 +53,13 @@ export const handler: Handler = async (event: HandlerEvent) => {
     });
 
     if (!idea) {
-      return {
-        statusCode: 404,
-        body: JSON.stringify({ error: 'Idea not found' }),
-      };
+      return ErrorResponses.notFound('Idea');
     }
 
-    // Only the author can update
-    if (idea.authorId !== payload.userId) {
-      return {
-        statusCode: 403,
-        body: JSON.stringify({ error: 'Only the author can update this idea' }),
-      };
+    // Check edit permission
+    const permission = canEditIdea(idea, auth.userId);
+    if (!permission.allowed) {
+      return ErrorResponses.forbidden(permission.reason);
     }
 
     // Build update data (only include provided fields)
@@ -103,27 +85,14 @@ export const handler: Handler = async (event: HandlerEvent) => {
     });
 
     // Transform user data
-    const { passwordHash: _, ...author } = updatedIdea.author;
-
-    return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        data: {
-          ...updatedIdea,
-          author,
-        },
-        success: true,
-        message: 'Idea updated successfully',
-      }),
+    const responseData = {
+      ...updatedIdea,
+      author: sanitizeUser(updatedIdea.author),
     };
+
+    return successResponse(responseData, 'Idea updated successfully');
   } catch (error) {
     console.error('Update idea error:', error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Internal server error' }),
-    };
+    return ErrorResponses.serverError();
   }
 };
