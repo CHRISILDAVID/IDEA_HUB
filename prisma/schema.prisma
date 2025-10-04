@@ -69,7 +69,6 @@ model User {
   following          Follow[]              @relation("Follower")
   notifications      Notification[]
   sentNotifications  Notification[]        @relation("NotificationSender")
-  forkedIdeas        Idea[]                @relation("IdeaForks")
   
   @@map("users")
 }

@@ -1,0 +1,933 @@
+{
+  "info": {
+    "_postman_id": "ideahub-api-collection",
+    "name": "IdeaHub API - Complete Test Suite",
+    "description": "Complete API test collection for IdeaHub v4 - 18 endpoints\n\nSetup:\n1. Start server: netlify dev\n2. Import this collection\n3. Create environment with base_url: http://localhost:8888/.netlify/functions\n4. Run requests in order",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "ideahub"
+  },
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "1.1 Sign Up",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "",
+                  "// Save token to environment",
+                  "if (response.token) {",
+                  "    pm.environment.set('token', response.token);",
+                  "    console.log('✅ Token saved:', response.token.substring(0, 20) + '...');",
+                  "}",
+                  "",
+                  "// Save user ID",
+                  "if (response.user && response.user.id) {",
+                  "    pm.environment.set('user_id', response.user.id);",
+                  "    console.log('✅ User ID saved:', response.user.id);",
+                  "}",
+                  "",
+                  "// Tests",
+                  "pm.test('✓ Status code is 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('✓ Response has token', function () {",
+                  "    pm.expect(response).to.have.property('token');",
+                  "});",
+                  "",
+                  "pm.test('✓ Response has user object', function () {",
+                  "    pm.expect(response).to.have.property('user');",
+                  "    pm.expect(response.user).to.have.property('username');",
+                  "});",
+                  "",
+                  "pm.test('✓ Response time < 1s', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"postman.test@example.com\",\n  \"password\": \"Test123!@#\",\n  \"username\": \"postman_user\",\n  \"fullName\": \"Postman Test User\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth-signup",
+              "host": ["{{base_url}}"],
+              "path": ["auth-signup"]
+            },
+            "description": "Creates a new user account and returns JWT token.\n\nRequired fields:\n- email (unique)\n- password (string)\n- username (unique)\n- fullName (string)"
+          },
+          "response": []
+        },
+        {
+          "name": "1.2 Sign In",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "",
+                  "// Save token",
+                  "if (response.token) {",
+                  "    pm.environment.set('token', response.token);",
+                  "    console.log('✅ Token refreshed');",
+                  "}",
+                  "",
+                  "pm.test('✓ Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('✓ Login successful', function () {",
+                  "    pm.expect(response.success).to.be.true;",
+                  "});",
+                  "",
+                  "pm.test('✓ Token received', function () {",
+                  "    pm.expect(response.token).to.exist;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"postman.test@example.com\",\n  \"password\": \"Test123!@#\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth-signin",
+              "host": ["{{base_url}}"],
+              "path": ["auth-signin"]
+            },
+            "description": "Authenticates user and returns JWT token."
+          },
+          "response": []
+        },
+        {
+          "name": "1.3 Get Current User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "",
+                  "pm.test('✓ Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('✓ User data returned', function () {",
+                  "    pm.expect(response).to.have.property('username');",
+                  "    pm.expect(response).to.have.property('email');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth-user",
+              "host": ["{{base_url}}"],
+              "path": ["auth-user"]
+            },
+            "description": "Gets current authenticated user from JWT token."
+          },
+          "response": []
+        },
+        {
+          "name": "1.4 Sign Out",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth-signout",
+              "host": ["{{base_url}}"],
+              "path": ["auth-signout"]
+            },
+            "description": "Client-side logout (removes token from localStorage)."
+          },
+          "response": []
+        }
+      ],
+      "description": "Authentication endpoints - 4 APIs"
+    },
+    {
+      "name": "2. Ideas",
+      "item": [
+        {
+          "name": "2.1 Create Idea",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "",
+                  "// Save idea ID",
+                  "if (response.idea && response.idea.id) {",
+                  "    pm.environment.set('test_idea_id', response.idea.id);",
+                  "    console.log('✅ Idea ID saved:', response.idea.id);",
+                  "}",
+                  "",
+                  "// Save workspace ID",
+                  "if (response.idea && response.idea.workspace && response.idea.workspace.id) {",
+                  "    pm.environment.set('test_workspace_id', response.idea.workspace.id);",
+                  "    console.log('✅ Workspace ID saved:', response.idea.workspace.id);",
+                  "}",
+                  "",
+                  "pm.test('✓ Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('✓ Idea created', function () {",
+                  "    pm.expect(response.idea).to.exist;",
+                  "});",
+                  "",
+                  "pm.test('✓ Workspace created automatically (1:1 constraint)', function () {",
+                  "    pm.expect(response.idea.workspace).to.exist;",
+                  "    pm.expect(response.idea.workspace.name).to.equal(response.idea.title);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Test Idea from Postman\",\n  \"description\": \"This is a test idea created via Postman API testing\",\n  \"content\": \"# Test Content\\n\\nThis is the full content of the idea.\\n\\n## Features\\n- Feature 1\\n- Feature 2\",\n  \"category\": \"technology\",\n  \"tags\": [\"test\", \"postman\", \"api\"],\n  \"visibility\": \"PUBLIC\",\n  \"status\": \"PUBLISHED\",\n  \"license\": \"MIT\",\n  \"language\": \"javascript\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/ideas-create",
+              "host": ["{{base_url}}"],
+              "path": ["ideas-create"]
+            },
+            "description": "Creates idea + workspace atomically (1:1 constraint).\n\nCRITICAL: Creates workspace with same name as idea."
+          },
+          "response": []
+        },
+        {
+          "name": "2.2 List Ideas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "",
+                  "pm.test('✓ Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('✓ Ideas array exists', function () {",
+                  "    pm.expect(response.data).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('✓ Pagination info exists', function () {",
+                  "    pm.expect(response).to.have.property('total');",
+                  "    pm.expect(response).to.have.property('limit');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/ideas-list?page=1&pageSize=10",
+              "host": ["{{base_url}}"],
+              "path": ["ideas-list"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "10"
+                },
+                {
+                  "key": "category",
+                  "value": "technology",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "test",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Lists ideas with optional filters.\n\nQuery params:\n- page: Page number\n- pageSize: Items per page\n- category: Filter by category\n- search: Search in title/description\n- tags: Comma-separated tags"
+          },
+          "response": []
+        },
+        {
+          "name": "2.3 Get Single Idea",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "",
+                  "pm.test('✓ Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('✓ Idea details returned', function () {",
+                  "    pm.expect(response).to.have.property('title');",
+                  "    pm.expect(response).to.have.property('author');",
+                  "    pm.expect(response).to.have.property('workspace');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/ideas-get?id={{test_idea_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["ideas-get"],
+              "query": [
+                {
+                  "key": "id",
+                  "value": "{{test_idea_id}}"
+                }
+              ]
+            },
+            "description": "Gets single idea with full details including workspace."
+          },
+          "response": []
+        },
+        {
+          "name": "2.4 Update Idea",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "",
+                  "pm.test('✓ Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('✓ Idea updated', function () {",
+                  "    pm.expect(response.success).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{test_idea_id}}\",\n  \"title\": \"Updated Test Idea from Postman\",\n  \"description\": \"This idea has been updated via Postman API\",\n  \"tags\": [\"updated\", \"postman\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/ideas-update",
+              "host": ["{{base_url}}"],
+              "path": ["ideas-update"]
+            },
+            "description": "Updates idea (author only)."
+          },
+          "response": []
+        },
+        {
+          "name": "2.5 Star Idea",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "",
+                  "pm.test('✓ Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('✓ Star status returned', function () {",
+                  "    pm.expect(response).to.have.property('isStarred');",
+                  "    pm.expect(response).to.have.property('stars');",
+                  "});",
+                  "",
+                  "console.log('⭐ Star status:', response.isStarred, '- Total stars:', response.stars);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ideaId\": \"{{test_idea_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/ideas-star",
+              "host": ["{{base_url}}"],
+              "path": ["ideas-star"]
+            },
+            "description": "Toggles star on idea (star/unstar)."
+          },
+          "response": []
+        },
+        {
+          "name": "2.6 Fork Idea",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "",
+                  "// Save forked idea ID",
+                  "if (response.idea && response.idea.id) {",
+                  "    pm.environment.set('forked_idea_id', response.idea.id);",
+                  "    console.log('✅ Forked idea ID saved:', response.idea.id);",
+                  "}",
+                  "",
+                  "pm.test('✓ Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('✓ Forked idea created', function () {",
+                  "    pm.expect(response.idea).to.exist;",
+                  "    pm.expect(response.idea.isFork).to.be.true;",
+                  "});",
+                  "",
+                  "pm.test('✓ New workspace created for fork', function () {",
+                  "    pm.expect(response.idea.workspace).to.exist;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ideaId\": \"{{test_idea_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/ideas-fork",
+              "host": ["{{base_url}}"],
+              "path": ["ideas-fork"]
+            },
+            "description": "Forks idea and creates new workspace.\n\nCRITICAL: Creates new idea + new workspace."
+          },
+          "response": []
+        },
+        {
+          "name": "2.7 Delete Idea",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "",
+                  "pm.test('✓ Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('✓ Idea deleted', function () {",
+                  "    pm.expect(response.success).to.be.true;",
+                  "});",
+                  "",
+                  "console.log('🗑️ Idea and workspace deleted');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ideas-delete?id={{test_idea_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["ideas-delete"],
+              "query": [
+                {
+                  "key": "id",
+                  "value": "{{test_idea_id}}"
+                }
+              ]
+            },
+            "description": "Deletes idea (cascades to workspace).\n\n⚠️ Run this last!"
+          },
+          "response": []
+        }
+      ],
+      "description": "Ideas management - 7 APIs"
+    },
+    {
+      "name": "3. Workspaces",
+      "item": [
+        {
+          "name": "3.1 List Workspaces",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "",
+                  "pm.test('✓ Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('✓ Workspaces array exists', function () {",
+                  "    pm.expect(response.workspaces).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/workspaces-list",
+              "host": ["{{base_url}}"],
+              "path": ["workspaces-list"]
+            },
+            "description": "Lists all user's workspaces."
+          },
+          "response": []
+        },
+        {
+          "name": "3.2 Get Workspace",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "",
+                  "pm.test('✓ Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('✓ Workspace data returned', function () {",
+                  "    pm.expect(response.data).to.exist;",
+                  "    pm.expect(response.data.content).to.exist;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/workspaces-get?id={{test_workspace_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["workspaces-get"],
+              "query": [
+                {
+                  "key": "id",
+                  "value": "{{test_workspace_id}}"
+                }
+              ]
+            },
+            "description": "Gets workspace with canvas data and access control."
+          },
+          "response": []
+        },
+        {
+          "name": "3.3 Update Workspace",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "",
+                  "pm.test('✓ Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('✓ Workspace updated', function () {",
+                  "    pm.expect(response.success).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{test_workspace_id}}\",\n  \"content\": {\n    \"elements\": [\n      {\n        \"type\": \"rectangle\",\n        \"x\": 100,\n        \"y\": 100,\n        \"width\": 200,\n        \"height\": 150,\n        \"fillStyle\": \"solid\",\n        \"strokeColor\": \"#000000\",\n        \"backgroundColor\": \"#ced4da\"\n      },\n      {\n        \"type\": \"text\",\n        \"x\": 120,\n        \"y\": 160,\n        \"text\": \"Updated from Postman\",\n        \"fontSize\": 20\n      }\n    ],\n    \"appState\": {\n      \"viewBackgroundColor\": \"#ffffff\",\n      \"zoom\": 1.0\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/workspaces-update",
+              "host": ["{{base_url}}"],
+              "path": ["workspaces-update"]
+            },
+            "description": "Updates workspace canvas data (owner + editors only)."
+          },
+          "response": []
+        }
+      ],
+      "description": "Workspaces management - 3 APIs"
+    },
+    {
+      "name": "4. Users",
+      "item": [
+        {
+          "name": "4.1 Get User Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "",
+                  "pm.test('✓ Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('✓ Profile data returned', function () {",
+                  "    pm.expect(response).to.have.property('username');",
+                  "    pm.expect(response).to.have.property('stats');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users-profile?username=postman_user",
+              "host": ["{{base_url}}"],
+              "path": ["users-profile"],
+              "query": [
+                {
+                  "key": "username",
+                  "value": "postman_user"
+                },
+                {
+                  "key": "userId",
+                  "value": "{{user_id}}",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Gets user profile with stats.\n\nQuery params: username OR userId (at least one required)"
+          },
+          "response": []
+        },
+        {
+          "name": "4.2 Update User Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "",
+                  "pm.test('✓ Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('✓ Profile updated', function () {",
+                  "    pm.expect(response.success).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bio\": \"Updated bio from Postman API test - Software Developer\",\n  \"location\": \"San Francisco, CA\",\n  \"website\": \"https://example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users-update",
+              "host": ["{{base_url}}"],
+              "path": ["users-update"]
+            },
+            "description": "Updates own user profile."
+          },
+          "response": []
+        },
+        {
+          "name": "4.3 Follow User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('✓ Status code is 200 or 400', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 400]);",
+                  "});",
+                  "",
+                  "// Note: Will return 400 if user doesn't exist or trying to follow self"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"followingId\": \"user-id-to-follow\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users-follow",
+              "host": ["{{base_url}}"],
+              "path": ["users-follow"]
+            },
+            "description": "Follows/unfollows a user.\n\n⚠️ Need valid user ID to test properly."
+          },
+          "response": []
+        }
+      ],
+      "description": "Users management - 3 APIs"
+    },
+    {
+      "name": "5. Collaborators",
+      "item": [
+        {
+          "name": "5.1 Add Collaborator",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('✓ Status code is 201 or 400', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([201, 400]);",
+                  "});",
+                  "",
+                  "const response = pm.response.json();",
+                  "",
+                  "// Test max collaborators constraint",
+                  "if (pm.response.code === 400 && response.error) {",
+                  "    pm.test('✓ Max 3 collaborators enforced', function () {",
+                  "        pm.expect(response.error.toLowerCase()).to.include('collaborators');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ideaId\": \"{{test_idea_id}}\",\n  \"userId\": \"user-id-to-add\",\n  \"role\": \"EDITOR\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/collaborators-add",
+              "host": ["{{base_url}}"],
+              "path": ["collaborators-add"]
+            },
+            "description": "Adds collaborator to idea (max 3).\n\nCRITICAL: Max 3 collaborators enforced.\n\n⚠️ Need valid user ID to test properly."
+          },
+          "response": []
+        }
+      ],
+      "description": "Collaborators management - 1 API"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Check if token exists for authenticated requests",
+          "const token = pm.environment.get('token');",
+          "if (!token && pm.request.headers.get('Authorization')) {",
+          "    console.warn('⚠️ No token found. Run Sign Up or Sign In first.');",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global test - log response time",
+          "console.log('⏱️ Response time:', pm.response.responseTime + 'ms');"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8888/.netlify/functions",
+      "type": "string"
+    }
+  ]
+}
