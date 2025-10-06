@@ -61,6 +61,10 @@ export const handler: Handler = async (event: HandlerEvent) => {
 
     const responseData = {
       ...workspace,
+      // Include new fields: document, whiteboard, archived
+      document: workspace.document,
+      whiteboard: workspace.whiteboard,
+      archived: workspace.archived,
       idea: {
         ...workspace.idea,
         author: sanitizeUser(workspace.idea.author),

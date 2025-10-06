@@ -3,7 +3,16 @@
  * PUT /.netlify/functions/workspaces-update
  * 
  * Only owner and collaborators with EDITOR role can update
- * Body: { workspaceId: string, content?: any, name?: string, thumbnail?: string, isPublic?: boolean }
+ * Body: { 
+ *   workspaceId: string, 
+ *   content?: any,           // Legacy Excalidraw content
+ *   document?: any,          // BlockNote document content  
+ *   whiteboard?: any,        // Excalidraw canvas data
+ *   name?: string, 
+ *   thumbnail?: string, 
+ *   isPublic?: boolean,
+ *   archived?: boolean       // Soft delete flag
+ * }
  */
 
 import type { Handler, HandlerEvent } from '@netlify/functions';
@@ -31,7 +40,7 @@ export const handler: Handler = async (event: HandlerEvent) => {
     const auth = requireAuth(event);
     if ('statusCode' in auth) return auth;
 
-    const { workspaceId, content, name, thumbnail, isPublic } = JSON.parse(event.body || '{}');
+    const { workspaceId, content, name, thumbnail, isPublic, document, whiteboard, archived } = JSON.parse(event.body || '{}');
 
     if (!workspaceId) {
       return ErrorResponses.badRequest('Workspace ID is required');
@@ -55,6 +64,9 @@ export const handler: Handler = async (event: HandlerEvent) => {
     if (content !== undefined) updateData.content = content;
     if (name !== undefined) updateData.name = name;
     if (thumbnail !== undefined) updateData.thumbnail = thumbnail;
+    if (document !== undefined) updateData.document = document;
+    if (whiteboard !== undefined) updateData.whiteboard = whiteboard;
+    if (archived !== undefined) updateData.archived = archived;
     
     // Only owner can change visibility
     if (isPublic !== undefined) {

@@ -110,15 +110,24 @@ model Idea {
 }
 
 model Workspace {
-  id        String   @id @default(uuid())
-  name      String
-  ideaId    String   @unique @map("idea_id")
-  userId    String   @map("user_id")
-  content   Json     @default("{\"elements\": [], \"appState\": {}}")
-  thumbnail String?  @db.Text
-  isPublic  Boolean  @default(false) @map("is_public")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id         String   @id @default(uuid())
+  name       String
+  ideaId     String   @unique @map("idea_id")
+  userId     String   @map("user_id")
+  
+  // Enhanced content structure for workspace editing
+  content    Json     @default("{\"elements\": [], \"appState\": {}}") // Legacy Excalidraw data
+  document   Json?    @db.JsonB  // BlockNote/document editor content
+  whiteboard Json?    @db.JsonB  // Excalidraw canvas elements (enhanced)
+  
+  // Metadata
+  thumbnail  String?  @db.Text
+  archived   Boolean  @default(false)  // Soft delete flag
+  isPublic   Boolean  @default(false) @map("is_public")
+  
+  // Timestamps
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
   
   // Relations
   idea  Idea @relation("IdeaWorkspace", fields: [ideaId], references: [id], onDelete: Cascade)
@@ -127,6 +136,7 @@ model Workspace {
   @@map("workspaces")
   @@index([userId])
   @@index([ideaId])
+  @@index([archived])
 }
 
 model IdeaCollaborator {

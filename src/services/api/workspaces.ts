@@ -9,6 +9,10 @@ export interface Workspace {
     elements: any[];
     appState: any;
   };
+  // Enhanced workspace fields for Phase 9
+  document?: any;      // BlockNote document editor content
+  whiteboard?: any;    // Excalidraw canvas/whiteboard content
+  archived?: boolean;  // Soft delete flag
   thumbnail?: string;
   isPublic: boolean;
   createdAt: string;
@@ -37,6 +41,9 @@ function transformWorkspace(data: any): Workspace {
     name: data.name,
     userId: data.userId || data.user_id,
     content: data.content || { elements: [], appState: {} },
+    document: data.document,
+    whiteboard: data.whiteboard,
+    archived: data.archived || false,
     thumbnail: data.thumbnail,
     isPublic: data.isPublic || data.is_public,
     createdAt: data.createdAt || data.created_at,
@@ -121,6 +128,9 @@ export class WorkspacesService {
   static async updateWorkspace(id: string, updates: {
     name?: string;
     content?: any;
+    document?: any;
+    whiteboard?: any;
+    archived?: boolean;
     thumbnail?: string;
     isPublic?: boolean;
   }): Promise<ApiResponse<Workspace>> {

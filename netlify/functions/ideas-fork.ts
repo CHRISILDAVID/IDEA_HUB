@@ -96,6 +96,9 @@ export const handler: Handler = async (event: HandlerEvent) => {
           ideaId: forkedIdea.id,
           userId: auth.userId,
           content: originalIdea.workspace?.content || { elements: [], appState: {} },
+          document: originalIdea.workspace?.document || null,     // Copy document content
+          whiteboard: originalIdea.workspace?.whiteboard || null, // Copy whiteboard content
+          archived: false,                                        // New workspace, not archived
           isPublic: true,
         },
       });
