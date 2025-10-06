@@ -90,9 +90,10 @@
 - No active work - Phase 8 Complete!
 
 ### ⏳ Pending
-- [ ] Phase 9: Environment & Configuration
-- [ ] Phase 10: Testing & Cleanup
-- [ ] Phase 11: Documentation
+- [ ] Phase 9: Workspace Component Migration & Integration ⭐ **NEW PHASE**
+- [ ] Phase 10: Environment & Configuration
+- [ ] Phase 11: Testing & Cleanup
+- [ ] Phase 12: Documentation
 
 ---
 
@@ -503,30 +504,47 @@ enum NotificationType {
   - Significantly reduced code duplication
   - Improved consistency across all endpoints
 
-### Phase 9: Environment & Configuration (0/4)
-- [ ] 9.1. Update .env with DATABASE_URL
-- [ ] 9.2. Update .env.example with new variables
-- [ ] 9.3. Update vite.config if needed
-- [ ] 9.4. Document environment setup in README
+### Phase 9: Workspace Component Migration & Integration (0/11) ⭐ **NEW PHASE**
+**Objective:** Migrate fully functional Next.js workspace component from ideahubORM into IDEA_HUB
+**Status:** Not Started
+**Reference:** See `PHASE_9_WORKSPACE_MIGRATION.md` for detailed implementation guide
 
-### Phase 10: Testing & Cleanup (0/10)
-- [ ] 10.1. Test user registration and login
-- [ ] 10.2. Test idea creation with workspace
-- [ ] 10.3. Test collaborator management (max 3 constraint)
-- [ ] 10.4. Test public/private idea visibility
-- [ ] 10.5. Test idea forking
-- [ ] 10.6. Test comments and stars
-- [ ] 10.7. Test follow/unfollow
-- [ ] 10.8. Remove Supabase dependencies from package.json
-- [ ] 10.9. Remove Supabase migration files
-- [ ] 10.10. Clean up unused Supabase files
+- [ ] 9.1. Schema Migration - Enhance Workspace model with document/whiteboard fields
+- [ ] 9.2. Backend API Updates - Update workspace endpoints for new fields
+- [ ] 9.3. Workspace Component Migration - Copy Next.js workspace from ideahubORM
+- [ ] 9.4. Access Control Implementation - Permission matrix and utilities
+- [ ] 9.5. Routing Integration - Update React Router for workspace routes
+- [ ] 9.6. Idea Creation Flow - Modal overlay with auto-workspace creation
+- [ ] 9.7. Fork Mechanism - Copy workspace on idea fork
+- [ ] 9.8. View Mode vs Edit Mode - Read-only vs editable workspace
+- [ ] 9.9. Collaborator Management - Max 3 collaborators UI
+- [ ] 9.10. Testing & Validation - Comprehensive test suite
+- [ ] 9.11. Cleanup & Migration - Remove dummy workspace code
 
-### Phase 11: Documentation (0/5)
-- [ ] 11.1. Update README with Prisma setup instructions
-- [ ] 11.2. Document database schema and relations
-- [ ] 11.3. Document authentication flow
-- [ ] 11.4. Document API changes (if any)
-- [ ] 11.5. Update this file with final status
+### Phase 10: Environment & Configuration (0/4)
+- [ ] 10.1. Update .env with DATABASE_URL
+- [ ] 10.2. Update .env.example with new variables
+- [ ] 10.3. Update vite.config if needed
+- [ ] 10.4. Document environment setup in README
+
+### Phase 11: Testing & Cleanup (0/10)
+- [ ] 11.1. Test user registration and login
+- [ ] 11.2. Test idea creation with workspace
+- [ ] 11.3. Test collaborator management (max 3 constraint)
+- [ ] 11.4. Test public/private idea visibility
+- [ ] 11.5. Test idea forking
+- [ ] 11.6. Test comments and stars
+- [ ] 11.7. Test follow/unfollow
+- [ ] 11.8. Remove Supabase dependencies from package.json
+- [ ] 11.9. Remove Supabase migration files
+- [ ] 11.10. Clean up unused Supabase files
+
+### Phase 12: Documentation (0/5)
+- [ ] 12.1. Update README with Prisma setup instructions
+- [ ] 12.2. Document database schema and relations
+- [ ] 12.3. Document authentication flow
+- [ ] 12.4. Document API changes (if any)
+- [ ] 12.5. Update this file with final status
 
 ---
 

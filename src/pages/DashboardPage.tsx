@@ -27,7 +27,7 @@ export const DashboardPage: React.FC = () => {
     totalStars: 0,
     totalForks: 0,
     totalViews: 0,
-    recentActivity: [],
+    recentActivity: [] as any[]
   });
   const [loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(true);
