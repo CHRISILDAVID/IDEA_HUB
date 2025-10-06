@@ -504,18 +504,30 @@ enum NotificationType {
   - Significantly reduced code duplication
   - Improved consistency across all endpoints
 
-### Phase 9: Workspace Component Migration & Integration (0/11) ⭐ **NEW PHASE**
-**Objective:** Migrate fully functional Next.js workspace component from ideahubORM into IDEA_HUB
-**Status:** Not Started
+### Phase 9: Workspace Component Migration & Integration (4/11) ⭐ **IN PROGRESS**
+**Objective:** Enhance Workspace model and integrate document/whiteboard support
+**Status:** Schema and Backend APIs Complete
 **Reference:** See `PHASE_9_WORKSPACE_MIGRATION.md` for detailed implementation guide
 
-- [ ] 9.1. Schema Migration - Enhance Workspace model with document/whiteboard fields
-- [ ] 9.2. Backend API Updates - Update workspace endpoints for new fields
+- [x] 9.1. Schema Migration - Enhance Workspace model with document/whiteboard fields
+  - [x] Added `document Json? @db.JsonB` field
+  - [x] Added `whiteboard Json? @db.JsonB` field
+  - [x] Added `archived Boolean @default(false)` field
+  - [x] Created migration SQL file
+  - [x] Added index on archived field
+- [x] 9.2. Backend API Updates - Update workspace endpoints for new fields
+  - [x] Updated workspaces-get.ts to return document, whiteboard, archived
+  - [x] Updated workspaces-update.ts to accept new fields
+  - [x] Updated ideas-create.ts to initialize new fields
+  - [x] Updated ideas-fork.ts to copy workspace content
 - [ ] 9.3. Workspace Component Migration - Copy Next.js workspace from ideahubORM
-- [ ] 9.4. Access Control Implementation - Permission matrix and utilities
+  - Note: ideahubORM folder is empty, using existing React workspace components
+- [x] 9.4. Access Control Implementation - Permission matrix and utilities
+  - [x] Created workspace-permissions.ts with full permission matrix
+  - [x] Implemented canView, canEdit, canArchive, canFork checks
 - [ ] 9.5. Routing Integration - Update React Router for workspace routes
 - [ ] 9.6. Idea Creation Flow - Modal overlay with auto-workspace creation
-- [ ] 9.7. Fork Mechanism - Copy workspace on idea fork
+- [ ] 9.7. Fork Mechanism - Copy workspace on idea fork (DONE in 9.2)
 - [ ] 9.8. View Mode vs Edit Mode - Read-only vs editable workspace
 - [ ] 9.9. Collaborator Management - Max 3 collaborators UI
 - [ ] 9.10. Testing & Validation - Comprehensive test suite
