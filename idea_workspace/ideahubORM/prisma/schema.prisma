@@ -14,12 +14,98 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model File {
-  id         String   @id @default(cuid())
-  fileName   String
-  document   Json?
-  whiteboard Json?
-  archived   Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+// ============================================
+// ENUMS (Minimal set needed for Workspace)
+// ============================================
+
+enum Visibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum Status {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+// ============================================
+// MODELS (Minimal set needed for Workspace operations)
+// ============================================
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  email        String   @unique
+  fullName     String   @map("full_name")
+  passwordHash String?  @map("password_hash")
+  avatarUrl    String?  @map("avatar_url")
+  bio          String?
+  location     String?
+  website      String?
+  isVerified   Boolean  @default(false) @map("is_verified")
+  joinedAt     DateTime @default(now()) @map("joined_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  // Relations (only what's needed for workspace)
+  ideas              Idea[]                @relation("AuthorIdeas")
+  workspaces         Workspace[]           @relation("WorkspaceOwner")
+  
+  @@map("users")
+}
+
+model Idea {
+  id          String     @id @default(uuid())
+  title       String
+  description String
+  content     String     @db.Text
+  canvasData  String?    @map("canvas_data") @db.Text
+  authorId    String     @map("author_id")
+  tags        String[]
+  category    String
+  license     String     @default("MIT")
+  version     String     @default("1.0.0")
+  stars       Int        @default(0)
+  forks       Int        @default(0)
+  isFork      Boolean    @default(false) @map("is_fork")
+  forkedFrom  String?    @map("forked_from")
+  visibility  Visibility @default(PUBLIC)
+  language    String?
+  status      Status     @default(PUBLISHED)
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  
+  // Relations
+  author         User               @relation("AuthorIdeas", fields: [authorId], references: [id], onDelete: Cascade)
+  workspace      Workspace?         @relation("IdeaWorkspace")
+  
+  @@map("ideas")
+  @@index([authorId])
+  @@index([visibility, status])
+}
+
+model Workspace {
+  id        String   @id @default(uuid())
+  name      String
+  ideaId    String   @unique @map("idea_id")
+  userId    String   @map("user_id")
+  
+  // Store both document and canvas content
+  document   Json?    @default("{}")                                 // EditorJS blocks
+  whiteboard Json?    @default("{\"elements\": [], \"appState\": {}}") // Excalidraw elements
+  
+  thumbnail String?  @db.Text
+  isPublic  Boolean  @default(false) @map("is_public")
+  archived  Boolean  @default(false) // For soft delete
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  idea  Idea @relation("IdeaWorkspace", fields: [ideaId], references: [id], onDelete: Cascade)
+  owner User @relation("WorkspaceOwner", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("workspaces")
+  @@index([userId])
+  @@index([ideaId])
 }
