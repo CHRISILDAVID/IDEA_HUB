@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Share2, Edit3, Loader2 } from 'lucide-react';
-import { EraserWorkspace } from '../components/Workspace/EraserWorkspace';
+import { Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 
@@ -10,9 +9,7 @@ export const IdeaWorkspacePage: React.FC = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   
-  const [idea, setIdea] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -22,54 +19,59 @@ export const IdeaWorkspacePage: React.FC = () => {
     }
 
     if (id && id !== 'new') {
-      loadIdea();
+      // Load existing idea and redirect to workspace view
+      loadIdeaAndRedirect();
     } else {
-      setLoading(false);
+      // Create new idea and redirect to workspace view
+      createNewIdeaAndRedirect();
     }
   }, [id, isAuthenticated]);
 
-  const loadIdea = async () => {
+  const loadIdeaAndRedirect = async () => {
     if (!id) return;
     
     try {
       setLoading(true);
       const response = await api.getIdea(id);
-      setIdea(response.data);
+      const idea = response.data;
+      
+      // Redirect to workspace view page
+      if (idea && idea.author) {
+        navigate(`/${idea.author.username}/idea/workspace/${idea.id}`, { replace: true });
+      }
     } catch (err) {
       setError('Failed to load idea');
       console.error('Error loading idea:', err);
-    } finally {
       setLoading(false);
     }
   };
 
-  const handleSave = async (elements: any[], appState: any) => {
+  const createNewIdeaAndRedirect = async () => {
     try {
-      setSaving(true);
+      setLoading(true);
       
-      if (id === 'new') {
-        // Create new idea with workspace content
-        const response = await api.createIdea({
-          title: 'Untitled Idea',
-          description: 'A new visual idea',
-          content: '',
-          canvasData: JSON.stringify({ elements, appState }),
-          category: 'general',
-          tags: [],
-          visibility: 'public',
-          status: 'published',
-        });
-        navigate(`/ideas/${response.data.id}`, { replace: true });
-      } else if (idea) {
-        // Update existing idea
-        await api.updateIdea(idea.id, {
-          canvasData: JSON.stringify({ elements, appState }),
-        });
+      // Create new idea with workspace
+      const response = await api.createIdea({
+        title: 'Untitled Idea',
+        description: 'A new idea workspace',
+        content: '',
+        canvasData: JSON.stringify({ elements: [], appState: {} }),
+        category: 'general',
+        tags: [],
+        visibility: 'public',
+        status: 'published',
+      });
+      
+      const idea = response.data;
+      
+      // Redirect to workspace view page
+      if (idea && user) {
+        navigate(`/${user.username}/idea/workspace/${idea.id}`, { replace: true });
       }
     } catch (err) {
-      console.error('Error saving idea:', err);
-    } finally {
-      setSaving(false);
+      setError('Failed to create idea');
+      console.error('Error creating idea:', err);
+      setLoading(false);
     }
   };
 
@@ -84,14 +86,6 @@ export const IdeaWorkspacePage: React.FC = () => {
             Please sign in to access ideas.
           </p>
         </div>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     );
   }
@@ -113,71 +107,13 @@ export const IdeaWorkspacePage: React.FC = () => {
     );
   }
 
-  const isOwner = idea?.author?.id === user?.id;
-  const canEdit = isOwner;
-
-  // Parse canvas data from idea
-  let initialElements = [];
-  let initialAppState = {};
-  
-  if (idea?.canvasData) {
-    try {
-      const parsed = JSON.parse(idea.canvasData);
-      initialElements = parsed.elements || [];
-      initialAppState = parsed.appState || {};
-    } catch (e) {
-      console.error('Error parsing canvas data:', e);
-    }
-  }
-
   return (
-    <div className="h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
-      {/* Top navigation */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            
-            <div>
-              <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {idea?.title || 'New Idea'}
-              </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {idea ? (isOwner ? 'Your idea' : `By ${idea.author.username}`) : 'Creating new idea...'}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            {saving && (
-              <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Saving...</span>
-              </div>
-            )}
-            
-            {canEdit && (
-              <button className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                <Share2 className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Workspace content */}
-      <div className="flex-1">
-        <EraserWorkspace
-          workspaceId={id}
-          onSave={handleSave}
-          readOnly={!canEdit}
-          className="h-full"
-        />
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
+        <p className="text-gray-600 dark:text-gray-400">
+          {id === 'new' ? 'Creating workspace...' : 'Loading workspace...'}
+        </p>
       </div>
     </div>
   );
