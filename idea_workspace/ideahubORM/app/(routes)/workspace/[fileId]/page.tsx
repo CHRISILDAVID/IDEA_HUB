@@ -1,5 +1,6 @@
 "use client";
 import React, { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -34,20 +35,46 @@ const Canvas = dynamic<CanvasComponentProps>(() => import("../_components/Canvas
 });
 
 const Workspace = ({ params }: any) => {
+  const searchParams = useSearchParams();
   const [fileData, setfileData] = useState<WorkspaceFile | null>(null);
+
+  // Get query parameters for iframe integration
+  const mode = searchParams.get('mode') || 'edit';
+  const readOnly = searchParams.get('readOnly') === 'true' || mode === 'view';
+  const token = searchParams.get('token');
 
   useEffect(() => {
     if (!params?.fileId) return;
 
     const fetchFileData = async () => {
-      const res = await fetch(`/api/workspace/${params.fileId}`);
+      const headers: any = {
+        'Content-Type': 'application/json',
+      };
+      
+      // Add auth token if provided
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const res = await fetch(`/api/workspace/${params.fileId}`, { headers });
       if (!res.ok) return;
       const file = await res.json();
       setfileData(file);
     };
 
     fetchFileData();
-  }, [params?.fileId]);
+  }, [params?.fileId, token]);
+
+  // Notify parent window when loaded (for iframe integration)
+  useEffect(() => {
+    if (fileData && typeof window !== 'undefined' && window.parent !== window) {
+      window.parent.postMessage(
+        { type: 'WORKSPACE_LOADED', source: 'workspace' },
+        '*' // In production, specify parent origin
+      );
+    }
+  }, [fileData]);
+
   const Tabs = [
     {
       name: "Document",
@@ -67,6 +94,18 @@ const Workspace = ({ params }: any) => {
 
   const handleFileUpdate = useCallback((data: WorkspaceFile) => {
     setfileData(data);
+    
+    // Notify parent window of save success (for iframe integration)
+    if (typeof window !== 'undefined' && window.parent !== window) {
+      window.parent.postMessage(
+        { 
+          type: 'SAVE_SUCCESS', 
+          payload: { timestamp: new Date(), workspaceId: data.id },
+          source: 'workspace' 
+        },
+        '*'
+      );
+    }
   }, []);
 
   return (
@@ -89,6 +128,7 @@ const Workspace = ({ params }: any) => {
               onSaveTrigger={false}
               fileId={params.fileId}
               fileData={fileData as any}
+              onFileUpdate={handleFileUpdate}
               onSavingStateChange={setSavingState}
             />
           )}
