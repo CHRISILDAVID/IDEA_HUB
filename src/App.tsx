@@ -17,7 +17,7 @@ import { ForksPage } from './pages/ForksPage';
 import { FollowingPage } from './pages/FollowingPage';
 import { NotificationsPage } from './pages/NotificationsPage';
 import { IdeaWorkspacePage } from './pages/IdeaWorkspacePage';
-import { WorkspacePage } from './pages/WorkspacePage';
+import { WorkspaceViewPage } from './pages/WorkspaceViewPage';
 import { WorkspacesListPage } from './pages/WorkspacesListPage';
 import { LoginForm } from './components/Auth/LoginForm';
 import { RegisterForm } from './components/Auth/RegisterForm';
@@ -94,9 +94,11 @@ function App() {
                       <WorkspacesListPage />
                     </ProtectedRoute>
                   } />
-                  <Route path="/workspace/:id" element={
+                  
+                  {/* NEW: Workspace view route */}
+                  <Route path="/:username/idea/workspace/:ideaId" element={
                     <ProtectedRoute>
-                      <WorkspacePage />
+                      <WorkspaceViewPage />
                     </ProtectedRoute>
                   } />
                 </Routes>

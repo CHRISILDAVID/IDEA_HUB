@@ -114,9 +114,14 @@ model Workspace {
   name      String
   ideaId    String   @unique @map("idea_id")
   userId    String   @map("user_id")
-  content   Json     @default("{\"elements\": [], \"appState\": {}}")
+  
+  // Store both document and canvas content
+  document   Json?    @default("{}")                                 // EditorJS blocks
+  whiteboard Json?    @default("{\"elements\": [], \"appState\": {}}") // Excalidraw elements
+  
   thumbnail String?  @db.Text
   isPublic  Boolean  @default(false) @map("is_public")
+  archived  Boolean  @default(false) // For soft delete
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   

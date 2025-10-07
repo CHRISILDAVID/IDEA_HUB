@@ -3,7 +3,7 @@
  * PUT /.netlify/functions/workspaces-update
  * 
  * Only owner and collaborators with EDITOR role can update
- * Body: { workspaceId: string, content?: any, name?: string, thumbnail?: string, isPublic?: boolean }
+ * Body: { workspaceId: string, document?: any, whiteboard?: any, name?: string, thumbnail?: string, isPublic?: boolean }
  */
 
 import type { Handler, HandlerEvent } from '@netlify/functions';
@@ -31,7 +31,7 @@ export const handler: Handler = async (event: HandlerEvent) => {
     const auth = requireAuth(event);
     if ('statusCode' in auth) return auth;
 
-    const { workspaceId, content, name, thumbnail, isPublic } = JSON.parse(event.body || '{}');
+    const { workspaceId, content, document, whiteboard, name, thumbnail, isPublic } = JSON.parse(event.body || '{}');
 
     if (!workspaceId) {
       return ErrorResponses.badRequest('Workspace ID is required');
@@ -52,7 +52,12 @@ export const handler: Handler = async (event: HandlerEvent) => {
 
     // Build update data
     const updateData: any = {};
-    if (content !== undefined) updateData.content = content;
+    // Support legacy 'content' field for backwards compatibility
+    if (content !== undefined) {
+      updateData.whiteboard = content;
+    }
+    if (document !== undefined) updateData.document = document;
+    if (whiteboard !== undefined) updateData.whiteboard = whiteboard;
     if (name !== undefined) updateData.name = name;
     if (thumbnail !== undefined) updateData.thumbnail = thumbnail;
     

@@ -19,11 +19,11 @@
 
 ## 🎯 Current Status
 
-**Phase:** Phase 8 COMPLETE! - Route Protection & Middleware ✅  
-**Progress:** 75% Complete  
+**Phase:** INTEGRATION PHASE COMPLETE! - Workspace iframe Integration ✅  
+**Progress:** 80% Complete  
 **Last Updated:** December 2024
 
-### ✅ Completed Phases (1-8)
+### ✅ Completed Phases (1-8 + Integration)
 - [x] **Phase 1:** Setup and Configuration (100%)
 - [x] **Phase 2:** Prisma Schema (100%)
 - [x] **Phase 3:** Database Migration (100%)
@@ -31,11 +31,12 @@
 - [x] **Phase 5:** Service Layer Migration (100%)
 - [x] **Phase 6:** Data Transformers (100%)
 - [x] **Phase 7:** Frontend Integration (100%)
-- [x] **Phase 8:** Route Protection & Middleware (100%) ✅ **JUST COMPLETED!**
+- [x] **Phase 8:** Route Protection & Middleware (100%)
+- [x] **INTEGRATION PHASE:** Workspace iframe Integration (100%) ✅ **JUST COMPLETED!**
 
 ### 🎉 Major Accomplishments
 1. **Architecture:** Serverless Functions (Netlify) selected and implemented
-2. **Backend:** 18 serverless functions created and working
+2. **Backend:** 19 serverless functions created and working (added workspace-permissions)
 3. **Service Layer:** All frontend services migrated to API client
 4. **Build:** Successful with no errors
 5. **Critical Constraints:** All enforced in backend
@@ -43,19 +44,21 @@
 7. **Frontend:** Fully migrated to JWT-based auth, app loads without Supabase
 8. **Authentication:** JWT tokens in localStorage, AuthContext migrated
 9. **UI Components:** StarButton, ForkButton migrated to API services
-10. **Middleware & Authorization:** Centralized utilities for all endpoints ✨ **NEW!**
+10. **Middleware & Authorization:** Centralized utilities for all endpoints
+11. **Workspace Integration:** iframe-based micro-frontend architecture ✨ **NEW!**
 
-### 📋 Backend Serverless Functions (18 total)
+### 📋 Backend Serverless Functions (19 total)
 **Authentication (4):**
 - ✅ auth-signup.ts, auth-signin.ts, auth-signout.ts, auth-user.ts (refactored)
 
 **Ideas (7):**
-- ✅ ideas-create.ts (atomic idea+workspace creation)
-- ✅ ideas-list.ts, ideas-get.ts (refactored), ideas-fork.ts (refactored)
+- ✅ ideas-create.ts (atomic idea+workspace creation with document/whiteboard)
+- ✅ ideas-list.ts, ideas-get.ts (refactored), ideas-fork.ts (copies workspace content)
 - ✅ ideas-update.ts (refactored), ideas-delete.ts (refactored), ideas-star.ts
 
-**Workspaces (3):**
-- ✅ workspaces-list.ts, workspaces-get.ts (refactored), workspaces-update.ts (refactored)
+**Workspaces (4):**
+- ✅ workspaces-list.ts, workspaces-get.ts (refactored), workspaces-update.ts (document/whiteboard fields)
+- ✅ workspace-permissions.ts (NEW - permission checking for iframe integration)
 
 **Users (3):**
 - ✅ users-profile.ts, users-update.ts (refactored), users-follow.ts (refactored)
@@ -87,12 +90,163 @@
 - ✅ Supabase client - Stubbed to prevent errors
 
 ### 🔄 In Progress
-- No active work - Phase 8 Complete!
+- No active work - Integration Phase Complete!
 
 ### ⏳ Pending
-- [ ] Phase 9: Environment & Configuration
+- [ ] Phase 9: Environment & Configuration (Database setup)
 - [ ] Phase 10: Testing & Cleanup
 - [ ] Phase 11: Documentation
+
+---
+
+## 🎨 Integration Phase: Workspace iframe Integration (COMPLETE!)
+
+**Date Completed:** December 2024  
+**Objective:** Integrate the Next.js workspace application (idea_workspace/ideahubORM) with the main React SPA (IDEA_HUB) using an iframe-based micro-frontend architecture.
+
+### Architecture Overview
+
+**Two Applications Communicating via iframe:**
+- **IDEA_HUB** (React SPA): Main application for idea browsing, user management, and social features
+- **idea_workspace** (Next.js): Standalone workspace application with Editor.js and Excalidraw canvas
+
+**Communication:** postMessage API for cross-origin communication between iframe and parent window
+
+### Implementation Summary
+
+#### 1. Database Schema Updates ✅
+**Updated:** `prisma/schema.prisma`
+- Modified `Workspace` model to include:
+  - `document` field (Json) - EditorJS blocks
+  - `whiteboard` field (Json) - Excalidraw elements  
+  - `archived` field (Boolean) - For soft delete
+
+#### 2. Backend API Updates ✅
+**Updated Functions:**
+- `ideas-create.ts` - Creates idea + workspace atomically with document/whiteboard fields
+- `ideas-fork.ts` - Copies workspace document and whiteboard content when forking
+- `workspaces-update.ts` - Handles document and whiteboard field updates
+
+**New Function:**
+- `workspace-permissions.ts` - Returns workspace data and user permissions for iframe integration
+  - Checks view/edit permissions
+  - Returns owner/collaborator status
+  - Provides workspace document and whiteboard data
+
+#### 3. React Components (IDEA_HUB) ✅
+**Removed Old Components:**
+- Deleted `src/components/Workspace/` directory (EraserWorkspace, WorkspaceCanvas, etc.)
+- Deleted `src/pages/WorkspacePage.tsx`
+
+**New Components:**
+- `src/components/Workspace/WorkspaceIframe.tsx`
+  - Renders iframe pointing to Next.js workspace app
+  - Handles postMessage communication
+  - Shows loading overlay and read-only banner
+  - Manages authentication token passing
+
+- `src/pages/WorkspaceViewPage.tsx`
+  - Main page for viewing/editing workspaces
+  - Fetches permissions from `workspace-permissions` API
+  - Handles fork functionality
+  - Determines mode (view/edit) based on permissions
+
+**Updated Components:**
+- `src/App.tsx` - Added new route: `/:username/idea/workspace/:ideaId`
+- `src/pages/IdeaWorkspacePage.tsx` - Redirects to new workspace view
+
+#### 4. Next.js Workspace Updates ✅
+**Updated:** `idea_workspace/ideahubORM/app/(routes)/workspace/[fileId]/page.tsx`
+- Added support for query parameters:
+  - `mode` - 'view' or 'edit'
+  - `readOnly` - boolean flag
+  - `token` - JWT authentication token
+- Added postMessage communication:
+  - Sends `WORKSPACE_LOADED` event when workspace loads
+  - Sends `SAVE_SUCCESS` event when workspace saves
+- Passes auth token to API requests
+
+**API Already Compatible:**
+- `idea_workspace/ideahubORM/app/api/workspace/[id]/route.ts` already handles document and whiteboard fields
+- Prisma schema already has document/whiteboard fields
+
+#### 5. Environment Configuration ✅
+**Updated:** `.env.example`
+- Added `VITE_WORKSPACE_APP_URL` for workspace app URL (default: http://localhost:3001)
+
+### postMessage Communication Protocol
+
+**From Workspace (iframe) to Parent:**
+```typescript
+// When workspace loads
+{ type: 'WORKSPACE_LOADED', source: 'workspace' }
+
+// When workspace saves successfully
+{ type: 'SAVE_SUCCESS', payload: { timestamp: Date, workspaceId: string }, source: 'workspace' }
+
+// When user requests to fork
+{ type: 'FORK_REQUEST', payload: { ideaId: string }, source: 'workspace' }
+
+// On error
+{ type: 'ERROR', payload: { message: string }, source: 'workspace' }
+```
+
+**From Parent to Workspace (iframe):**
+- Currently none (workspace receives data via URL params and API)
+
+### Routing Convention
+
+All workspace routes follow this pattern:
+```
+/{username}/idea/workspace/{ideaId}
+```
+
+Example: `/john/idea/workspace/abc-123-def`
+
+### Permission Model
+
+**View Permission:**
+- Public ideas: Anyone can view
+- Private ideas: Only owner and collaborators
+
+**Edit Permission:**
+- Owner: Full edit access
+- Collaborators with EDITOR role: Can edit
+- Others: Read-only (can fork if public)
+
+**Fork Permission:**
+- Available for public ideas when user is not owner/collaborator
+- Creates copy under user's account with new workspace
+
+### Files Modified/Created
+
+**Backend (5 files):**
+1. `prisma/schema.prisma` - Updated Workspace model
+2. `netlify/functions/ideas-create.ts` - Updated for document/whiteboard
+3. `netlify/functions/ideas-fork.ts` - Copies workspace content
+4. `netlify/functions/workspaces-update.ts` - Handles new fields
+5. `netlify/functions/workspace-permissions.ts` - NEW permission checker
+
+**Frontend (5 files):**
+1. `src/components/Workspace/WorkspaceIframe.tsx` - NEW iframe component
+2. `src/pages/WorkspaceViewPage.tsx` - NEW workspace view page
+3. `src/pages/IdeaWorkspacePage.tsx` - Updated to redirect
+4. `src/App.tsx` - Added new route
+5. `.env.example` - Added workspace URL
+
+**Workspace App (1 file):**
+1. `idea_workspace/ideahubORM/app/(routes)/workspace/[fileId]/page.tsx` - Added iframe support
+
+**Deleted (4 files):**
+1. `src/components/Workspace/EraserWorkspace.tsx`
+2. `src/components/Workspace/WorkspaceCanvas.tsx`
+3. `src/components/Workspace/WorkspaceHeader.tsx`
+4. `src/pages/WorkspacePage.tsx`
+
+### Build Status
+- ✅ Main app builds successfully
+- ✅ No TypeScript errors
+- ✅ All imports resolved
 
 ---
 
