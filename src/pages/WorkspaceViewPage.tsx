@@ -45,6 +45,11 @@ export const WorkspaceViewPage: React.FC = () => {
         setIdeaData(data.idea);
         setWorkspaceData(data.workspace);
         setPermissions(data.permissions);
+        
+        // Check if workspace exists
+        if (!data.workspace) {
+          setError('Workspace not found for this idea. Please try creating a new idea.');
+        }
       } catch (err: any) {
         setError(err.message);
       } finally {
