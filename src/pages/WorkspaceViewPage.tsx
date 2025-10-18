@@ -12,6 +12,7 @@ export const WorkspaceViewPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [permissions, setPermissions] = useState<any>(null);
   const [ideaData, setIdeaData] = useState<any>(null);
+  const [workspaceData, setWorkspaceData] = useState<any>(null);
 
   useEffect(() => {
     const fetchPermissions = async () => {
@@ -42,6 +43,7 @@ export const WorkspaceViewPage: React.FC = () => {
         }
 
         setIdeaData(data.idea);
+        setWorkspaceData(data.workspace);
         setPermissions(data.permissions);
       } catch (err: any) {
         setError(err.message);
@@ -112,7 +114,7 @@ export const WorkspaceViewPage: React.FC = () => {
     );
   }
 
-  if (!ideaData || !ideaData.workspace) {
+  if (!ideaData || !workspaceData) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
@@ -152,7 +154,7 @@ export const WorkspaceViewPage: React.FC = () => {
       {/* Workspace iframe */}
       <div className="flex-1">
         <WorkspaceIframe
-          workspaceId={ideaData.workspace.id}
+          workspaceId={workspaceData.id}
           ideaId={ideaId!}
           mode={mode}
           canFork={canFork}
