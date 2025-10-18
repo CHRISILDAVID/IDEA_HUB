@@ -59,6 +59,29 @@ npm run dev  # → http://localhost:3001
 - **Technical Details**: See `WORKSPACE_FIX_SUMMARY.md`
 - **Full Documentation**: See `FIX_IMPLEMENTATION_SUMMARY.md`
 
+## Common Issues
+
+### "Workspace not loading" or "Error message pops up"
+**Solution**: Make sure BOTH apps are running:
+1. Main app on `http://localhost:3000` (or 5173 with Vite, or 8888 with Netlify)
+2. Workspace app on `http://localhost:3001` (see setup instructions above)
+
+### "localhost:3000/api/workspace/workspaceid doesn't work"
+**Wrong URL!** The `/api/workspace/{id}` endpoint is for API calls, not for viewing in browser.
+
+**Correct approach:**
+1. Navigate to the main app: `http://localhost:3000` (or 8888 with Netlify)
+2. Create or open an idea
+3. The app will automatically redirect to: `http://localhost:3000/:username/idea/workspace/:ideaId`
+4. This page embeds the workspace app in an iframe
+
+**Direct access (for testing only):**
+- To test the workspace app directly: `http://localhost:3001/workspace/{workspaceId}`
+- Note: You'll need a valid JWT token as a query parameter for authentication
+
+### Port conflict errors
+The workspace app MUST run on port 3001 (not 3000). This is now configured in `package.json`.
+
 ## Architecture
 ```
 ┌─────────────────────────────────────────────────────────────┐
