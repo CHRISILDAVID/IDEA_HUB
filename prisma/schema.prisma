@@ -110,19 +110,24 @@ model Idea {
 }
 
 model Workspace {
-  id        String   @id @default(uuid())
-  name      String
-  ideaId    String   @unique @map("idea_id")
-  userId    String   @map("user_id")
-  content   Json     @default("{\"elements\": [], \"appState\": {}}")
-  thumbnail String?  @db.Text
-  isPublic  Boolean  @default(false) @map("is_public")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id          String   @id @default(uuid())
+  name        String
+  ideaId      String   @unique @map("idea_id")  // Enforce 1:1 with Idea
+  userId      String   @map("user_id")
+  
+  // Combined content fields from both schemas
+  document    Json?    @default("{}") // EditorJS content
+  whiteboard  Json?    @default("{\"elements\": [], \"appState\": {}}") // Excalidraw content
+  
+  thumbnail   String?  @db.Text
+  isPublic    Boolean  @default(false) @map("is_public")
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
   
   // Relations
-  idea  Idea @relation("IdeaWorkspace", fields: [ideaId], references: [id], onDelete: Cascade)
-  owner User @relation("WorkspaceOwner", fields: [userId], references: [id], onDelete: Cascade)
+  idea        Idea     @relation("IdeaWorkspace", fields: [ideaId], references: [id], onDelete: Cascade)
+  owner       User     @relation("WorkspaceOwner", fields: [userId], references: [id], onDelete: Cascade)
   
   @@map("workspaces")
   @@index([userId])
