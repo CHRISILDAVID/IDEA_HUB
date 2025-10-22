@@ -30,11 +30,13 @@ const Editor = ({
   fileId,
   fileData,
   onFileUpdate,
+  readonly = false,
 }: {
   onSaveTrigger: any;
   fileId: any;
   fileData: any;
   onFileUpdate?: (data: WorkspaceFile) => void;
+  readonly?: boolean;
 }) => {
   const ref = useRef<EditorJs>();
   const isInitialized = useRef(false);
@@ -63,7 +65,8 @@ const Editor = ({
     if (isInitialized.current || ref.current) return;
     const editor = new EditorJs({
       holder: holderIdRef.current,
-      placeholder: "Start cooking...",
+      placeholder: readonly ? "" : "Start cooking...",
+      readOnly: readonly,
       tools: {
         header: {
           // @ts-ignore
@@ -76,8 +79,8 @@ const Editor = ({
         checklist: checkList,
       },
       data:
-        // Prefer locally cached unsaved data first
-        (typeof window !== "undefined"
+        // Prefer locally cached unsaved data first (only if not readonly)
+        (!readonly && typeof window !== "undefined"
           ? (() => {
               try {
                 const cached = window.localStorage.getItem(localKey);
@@ -88,7 +91,7 @@ const Editor = ({
             })()
           : null) || (fileData && fileData.document ? fileData.document : document),
       onChange: async () => {
-        if (!ref.current) return;
+        if (!ref.current || readonly) return;
         const data = await ref.current.save();
         // Debounce local cache write to avoid heavy frequent JSON stringify
         if (localWriteDebounceRef.current) clearTimeout(localWriteDebounceRef.current);

@@ -99,6 +99,25 @@ export class WorkspacesService {
   }
 
   /**
+   * Get workspace by idea ID
+   */
+  static async getWorkspaceByIdeaId(ideaId: string): Promise<ApiResponse<Workspace>> {
+    try {
+      const response = await apiClient.get<{ data: any; success: boolean }>(`/workspaces-by-idea?ideaId=${ideaId}`);
+      const workspace = transformWorkspace(response.data);
+
+      return {
+        data: workspace,
+        message: 'Workspace retrieved successfully',
+        success: true,
+      };
+    } catch (error) {
+      console.error('Get workspace by idea error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Create a new workspace
    * NOTE: Workspaces are now created automatically with ideas
    * This method exists for backwards compatibility

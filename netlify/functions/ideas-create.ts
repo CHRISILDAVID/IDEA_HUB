@@ -89,7 +89,8 @@ export const handler: Handler = async (event: HandlerEvent) => {
           name: title,
           ideaId: idea.id,
           userId: payload.userId,
-          content: canvasData ? JSON.parse(canvasData) : { elements: [], appState: {} },
+          document: {},
+          whiteboard: canvasData ? JSON.parse(canvasData) : { elements: [], appState: {} },
           isPublic: visibility === 'PUBLIC',
         },
       });

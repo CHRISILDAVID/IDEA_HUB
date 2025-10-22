@@ -8,6 +8,7 @@ import {
 import WorkSpaceHeader from "../_components/WorkSpaceHeader";
 import dynamic from "next/dynamic";
 import { WorkspaceFile } from "../_types";
+import { useSearchParams } from "next/navigation";
 
 type SavingState = "idle" | "saving" | "saved" | "error";
 type EditorComponentProps = {
@@ -16,6 +17,7 @@ type EditorComponentProps = {
   fileData: any;
   onFileUpdate?: (data: WorkspaceFile) => void;
   onSavingStateChange?: (state: SavingState) => void;
+  readonly?: boolean;
 };
 type CanvasComponentProps = {
   onSaveTrigger: any;
@@ -23,6 +25,7 @@ type CanvasComponentProps = {
   fileData: any;
   onFileUpdate?: (data: WorkspaceFile) => void;
   onSavingStateChange?: (state: SavingState) => void;
+  readonly?: boolean;
 };
 
 const Editor = dynamic<EditorComponentProps>(() => import("../_components/Editor"), {
@@ -34,6 +37,8 @@ const Canvas = dynamic<CanvasComponentProps>(() => import("../_components/Canvas
 });
 
 const Workspace = ({ params }: any) => {
+  const searchParams = useSearchParams();
+  const readonly = searchParams.get('readonly') === 'true';
   const [fileData, setfileData] = useState<WorkspaceFile | null>(null);
 
   useEffect(() => {
@@ -71,17 +76,25 @@ const Workspace = ({ params }: any) => {
 
   return (
     <div className="overflow-hidden w-full">
+      {readonly && (
+        <div className="bg-yellow-100 dark:bg-yellow-900 border-b border-yellow-200 dark:border-yellow-800 px-4 py-2 text-center">
+          <span className="text-sm text-yellow-800 dark:text-yellow-200">
+            Viewing in read-only mode
+          </span>
+        </div>
+      )}
       <WorkSpaceHeader
         Tabs={Tabs}
         setActiveTab={setActiveTab}
         activeTab={activeTab}
         savingState={savingState}
         file={fileData}
+        readonly={readonly}
       />
       {activeTab === "Document" ? (
         <div
           style={{
-            height: "calc(100vh - 3rem)",
+            height: readonly ? "calc(100vh - 6rem)" : "calc(100vh - 3rem)",
           }}
         >
           {fileData && (
@@ -90,13 +103,14 @@ const Workspace = ({ params }: any) => {
               fileId={params.fileId}
               fileData={fileData as any}
               onSavingStateChange={setSavingState}
+              readonly={readonly}
             />
           )}
         </div>
       ) : activeTab === "Both" ? (
         <ResizablePanelGroup
           style={{
-            height: "calc(100vh - 3rem)",
+            height: readonly ? "calc(100vh - 6rem)" : "calc(100vh - 3rem)",
           }}
           direction="horizontal"
         >
@@ -108,6 +122,7 @@ const Workspace = ({ params }: any) => {
                 fileData={fileData as any}
                 onFileUpdate={handleFileUpdate}
                 onSavingStateChange={setSavingState}
+                readonly={readonly}
               />
             )}
           </ResizablePanel>
@@ -120,6 +135,7 @@ const Workspace = ({ params }: any) => {
                 fileData={fileData as any}
                 onFileUpdate={handleFileUpdate}
                 onSavingStateChange={setSavingState}
+                readonly={readonly}
               />
             )}
           </ResizablePanel>
@@ -127,7 +143,7 @@ const Workspace = ({ params }: any) => {
       ) : activeTab === "Canvas" ? (
         <div
           style={{
-            height: "calc(100vh - 3rem)",
+            height: readonly ? "calc(100vh - 6rem)" : "calc(100vh - 3rem)",
           }}
         >
           {fileData && (
@@ -137,6 +153,7 @@ const Workspace = ({ params }: any) => {
               fileData={fileData as any}
               onFileUpdate={handleFileUpdate}
               onSavingStateChange={setSavingState}
+              readonly={readonly}
             />
           )}
         </div>

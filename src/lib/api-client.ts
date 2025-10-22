@@ -74,7 +74,7 @@ class ApiClient {
 
       return this.handleResponse<T>(response);
     } catch (error) {
-      console.error(`GET ${endpoint} error:`, error);
+      console.error('GET request error:', { endpoint, error });
       throw error;
     }
   }
@@ -92,7 +92,7 @@ class ApiClient {
 
       return this.handleResponse<T>(response);
     } catch (error) {
-      console.error(`POST ${endpoint} error:`, error);
+      console.error('POST request error:', { endpoint, error });
       throw error;
     }
   }
@@ -110,7 +110,7 @@ class ApiClient {
 
       return this.handleResponse<T>(response);
     } catch (error) {
-      console.error(`PUT ${endpoint} error:`, error);
+      console.error('PUT request error:', { endpoint, error });
       throw error;
     }
   }
@@ -128,7 +128,7 @@ class ApiClient {
 
       return this.handleResponse<T>(response);
     } catch (error) {
-      console.error(`PATCH ${endpoint} error:`, error);
+      console.error('PATCH request error:', { endpoint, error });
       throw error;
     }
   }
@@ -145,7 +145,7 @@ class ApiClient {
 
       return this.handleResponse<T>(response);
     } catch (error) {
-      console.error(`DELETE ${endpoint} error:`, error);
+      console.error('DELETE request error:', { endpoint, error });
       throw error;
     }
   }
