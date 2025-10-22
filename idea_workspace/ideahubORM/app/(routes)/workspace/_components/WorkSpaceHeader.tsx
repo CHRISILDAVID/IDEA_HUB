@@ -33,6 +33,7 @@ const WorkSpaceHeader = ({
   activeTab,
   savingState,
   file,
+  readonly = false,
 }: any) => {
   return (
     <div className="border-b  border-neutral-800 h-12 flex items-center px-4 w-full">
@@ -49,23 +50,26 @@ const WorkSpaceHeader = ({
           <div>
             <h1 className="text-sm font-medium">
               {file ? file.name : "Untitled"}
+              {readonly && <span className="ml-2 text-xs text-yellow-500">(Read-only)</span>}
             </h1>
           </div>
         </div>
-        <div>
-          <DropdownMenu>
-            <DropdownMenuTrigger className="rounded-sm hover:bg-neutral-700 outline-none hover:text-white cursor-pointer p-1">
-              <MoreHorizontal size={16} />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="bg-neutral-800 ml-8 text-white  border-neutral-600">
-              <DropdownMenuItem className="cursor-pointer text-xs focus:bg-neutral-700 focus:text-white">
-                <Archive size={16} className="mr-2" />
-                Move to Archive
-              </DropdownMenuItem>
-              
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        {!readonly && (
+          <div>
+            <DropdownMenu>
+              <DropdownMenuTrigger className="rounded-sm hover:bg-neutral-700 outline-none hover:text-white cursor-pointer p-1">
+                <MoreHorizontal size={16} />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="bg-neutral-800 ml-8 text-white  border-neutral-600">
+                <DropdownMenuItem className="cursor-pointer text-xs focus:bg-neutral-700 focus:text-white">
+                  <Archive size={16} className="mr-2" />
+                  Move to Archive
+                </DropdownMenuItem>
+                
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
       </div>
 
       {/* tabs */}

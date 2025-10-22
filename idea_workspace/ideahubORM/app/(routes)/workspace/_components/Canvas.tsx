@@ -10,12 +10,14 @@ const Canvas = ({
   fileData,
   onFileUpdate,
   onSavingStateChange,
+  readonly = false,
 }: {
   onSaveTrigger: any;
   fileId: string;
   fileData: any;
   onFileUpdate?: (data: WorkspaceFile) => void;
   onSavingStateChange?: (state: "idle" | "saving" | "saved" | "error") => void;
+  readonly?: boolean;
 }) => {
   // Store whiteboard content in a ref to avoid rerender loops
   const whiteboardRef = useRef<any>(undefined);
@@ -30,7 +32,7 @@ const Canvas = ({
   // Compute initial scene only once per fileId to avoid re-mount/update loops
   if (!initialSceneRef.current) {
     const fromCache =
-      typeof window !== "undefined"
+      !readonly && typeof window !== "undefined"
         ? (() => {
             try {
               const cached = window.localStorage.getItem(localKey);
@@ -110,6 +112,7 @@ const Canvas = ({
         <Excalidraw
           theme="dark"
           initialData={initialSceneRef.current}
+          viewModeEnabled={readonly}
           UIOptions={{
             canvasActions: {
               export: false,
@@ -118,6 +121,7 @@ const Canvas = ({
             },
           }}
           onChange={(excaliDrawElements, appState, files) => {
+            if (readonly) return; // Don't save in readonly mode
             const whiteboardPayload = { elements: excaliDrawElements, files } as any;
             whiteboardRef.current = whiteboardPayload;
             // Debounce local cache writes to reduce churn
