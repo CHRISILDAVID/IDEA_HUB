@@ -86,6 +86,7 @@ export const supabaseApi = {
   // Workspaces
   getUserWorkspaces: WorkspacesService.getUserWorkspaces,
   getWorkspace: WorkspacesService.getWorkspace,
+  getWorkspaceByIdeaId: WorkspacesService.getWorkspaceByIdeaId,
   createWorkspace: WorkspacesService.createWorkspace,
   updateWorkspace: WorkspacesService.updateWorkspace,
   deleteWorkspace: WorkspacesService.deleteWorkspace,

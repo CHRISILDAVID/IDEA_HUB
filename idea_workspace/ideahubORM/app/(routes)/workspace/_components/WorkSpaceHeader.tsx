@@ -48,7 +48,7 @@ const WorkSpaceHeader = ({
           />
           <div>
             <h1 className="text-sm font-medium">
-              {file ? file.fileName : "Untitled"}
+              {file ? file.name : "Untitled"}
             </h1>
           </div>
         </div>

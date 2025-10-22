@@ -14,12 +14,218 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model File {
-  id         String   @id @default(cuid())
-  fileName   String
-  document   Json?
-  whiteboard Json?
-  archived   Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+// ============================================
+// ENUMS
+// ============================================
+
+enum Visibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum Status {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum CollaboratorRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+enum NotificationType {
+  STAR
+  FORK
+  COMMENT
+  MENTION
+  FOLLOW
+  ISSUE
+}
+
+// ============================================
+// MODELS
+// ============================================
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  email        String   @unique
+  fullName     String   @map("full_name")
+  passwordHash String?  @map("password_hash")
+  avatarUrl    String?  @map("avatar_url")
+  bio          String?
+  location     String?
+  website      String?
+  isVerified   Boolean  @default(false) @map("is_verified")
+  joinedAt     DateTime @default(now()) @map("joined_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  ideas              Idea[]                @relation("AuthorIdeas")
+  workspaces         Workspace[]           @relation("WorkspaceOwner")
+  collaborations     IdeaCollaborator[]
+  comments           Comment[]
+  stars              Star[]
+  followedBy         Follow[]              @relation("Following")
+  following          Follow[]              @relation("Follower")
+  notifications      Notification[]
+  sentNotifications  Notification[]        @relation("NotificationSender")
+  
+  @@map("users")
+}
+
+model Idea {
+  id          String     @id @default(uuid())
+  title       String
+  description String
+  content     String     @db.Text
+  canvasData  String?    @map("canvas_data") @db.Text
+  authorId    String     @map("author_id")
+  tags        String[]
+  category    String
+  license     String     @default("MIT")
+  version     String     @default("1.0.0")
+  stars       Int        @default(0)
+  forks       Int        @default(0)
+  isFork      Boolean    @default(false) @map("is_fork")
+  forkedFrom  String?    @map("forked_from")
+  visibility  Visibility @default(PUBLIC)
+  language    String?
+  status      Status     @default(PUBLISHED)
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  
+  // Relations
+  author         User               @relation("AuthorIdeas", fields: [authorId], references: [id], onDelete: Cascade)
+  forkedFromIdea Idea?              @relation("IdeaForks", fields: [forkedFrom], references: [id], onDelete: SetNull)
+  forkIdeas      Idea[]             @relation("IdeaForks")
+  workspace      Workspace?         @relation("IdeaWorkspace")
+  collaborators  IdeaCollaborator[]
+  comments       Comment[]
+  starredBy      Star[]
+  notifications  Notification[]
+  
+  @@map("ideas")
+  @@index([authorId])
+  @@index([visibility, status])
+}
+
+model Workspace {
+  id          String   @id @default(uuid())
+  name        String
+  ideaId      String   @unique @map("idea_id")  // Enforce 1:1 with Idea
+  userId      String   @map("user_id")
+  
+  // Combined content fields from both schemas
+  document    Json?    @default("{}") // EditorJS content
+  whiteboard  Json?    @default("{\"elements\": [], \"appState\": {}}") // Excalidraw content
+  
+  thumbnail   String?  @db.Text
+  isPublic    Boolean  @default(false) @map("is_public")
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  idea        Idea     @relation("IdeaWorkspace", fields: [ideaId], references: [id], onDelete: Cascade)
+  owner       User     @relation("WorkspaceOwner", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("workspaces")
+  @@index([userId])
+  @@index([ideaId])
+}
+
+model IdeaCollaborator {
+  id        String           @id @default(uuid())
+  ideaId    String           @map("idea_id")
+  userId    String           @map("user_id")
+  role      CollaboratorRole @default(VIEWER)
+  createdAt DateTime         @default(now()) @map("created_at")
+  
+  // Relations
+  idea Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([ideaId, userId])
+  @@map("idea_collaborators")
+  @@index([userId])
+  @@index([ideaId])
+}
+
+model Comment {
+  id        String    @id @default(uuid())
+  content   String    @db.Text
+  authorId  String    @map("author_id")
+  ideaId    String    @map("idea_id")
+  parentId  String?   @map("parent_id")
+  votes     Int       @default(0)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  
+  // Relations
+  author  User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  idea    Idea      @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[] @relation("CommentReplies")
+  
+  @@map("comments")
+  @@index([authorId])
+  @@index([ideaId])
+  @@index([parentId])
+}
+
+model Star {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  ideaId    String   @map("idea_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  idea Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, ideaId])
+  @@map("stars")
+  @@index([userId])
+  @@index([ideaId])
+}
+
+model Follow {
+  id          String   @id @default(uuid())
+  followerId  String   @map("follower_id")
+  followingId String   @map("following_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  follower  User @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+  
+  @@unique([followerId, followingId])
+  @@map("follows")
+  @@index([followerId])
+  @@index([followingId])
+}
+
+model Notification {
+  id            String           @id @default(uuid())
+  userId        String           @map("user_id")
+  type          NotificationType
+  message       String
+  isRead        Boolean          @default(false) @map("is_read")
+  relatedUserId String?          @map("related_user_id")
+  relatedIdeaId String?          @map("related_idea_id")
+  relatedUrl    String?          @map("related_url")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  
+  // Relations
+  user        User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  relatedUser User? @relation("NotificationSender", fields: [relatedUserId], references: [id], onDelete: Cascade)
+  relatedIdea Idea? @relation(fields: [relatedIdeaId], references: [id], onDelete: Cascade)
+  
+  @@map("notifications")
+  @@index([userId])
+  @@index([isRead])
 }
