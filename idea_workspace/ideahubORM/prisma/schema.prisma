@@ -1,8 +1,9 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// Prisma Schema for Workspace Microservice
+// ==========================================
+// WARNING: DO NOT run `prisma db push` or `prisma migrate` from this service!
+// The database schema is managed by the main IDEA_HUB application.
+// This schema is ONLY for generating the Prisma client.
+// ==========================================
 
 generator client {
   provider = "prisma-client-js"
@@ -14,12 +15,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// This model must match the File model in the main app's schema
+// Any changes should be made in /workspaces/IDEA_HUB/prisma/schema.prisma
 model File {
   id         String   @id @default(cuid())
-  fileName   String
+  fileName   String   @map("file_name")
   document   Json?
   whiteboard Json?
   archived   Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  
+  @@map("files")
 }

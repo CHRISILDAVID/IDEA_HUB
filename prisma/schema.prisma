@@ -225,3 +225,21 @@ model Notification {
   @@index([userId])
   @@index([isRead])
 }
+
+// ============================================
+// WORKSPACE MICROSERVICE MODEL
+// ============================================
+// This model is used by the workspace microservice (idea_workspace/ideahubORM)
+// for document editing and whiteboard functionality
+
+model File {
+  id         String   @id @default(cuid())
+  fileName   String   @map("file_name")
+  document   Json?    // EditorJS content
+  whiteboard Json?    // Excalidraw content
+  archived   Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  
+  @@map("files")
+}
