@@ -4,6 +4,9 @@
 // The database schema is managed by the main IDEA_HUB application.
 // This schema is ONLY for generating the Prisma client.
 // ==========================================
+// INTEGRATION NOTE: This service connects to the shared Workspace table
+// which has a 1:1 relationship with Ideas in the main application.
+// ==========================================
 
 generator client {
   provider = "prisma-client-js"
@@ -15,16 +18,25 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// This model must match the File model in the main app's schema
-// Any changes should be made in /workspaces/IDEA_HUB/prisma/schema.prisma
-model File {
-  id         String   @id @default(cuid())
-  fileName   String   @map("file_name")
-  document   Json?
-  whiteboard Json?
+// Workspace model - mirrors the main app's schema exactly
+// This is the unified workspace that's linked to Ideas via ideaId
+model Workspace {
+  id         String   @id @default(uuid())
+  name       String
+  ideaId     String   @unique @map("idea_id")  // 1:1 with Idea in main app
+  userId     String   @map("user_id")
+  
+  // Content fields for Editor and Canvas
+  document   Json?    @default("{}") // EditorJS content
+  whiteboard Json?    @default("{\"elements\": [], \"appState\": {}}") // Excalidraw content
+  
+  thumbnail  String?  @db.Text
+  isPublic   Boolean  @default(false) @map("is_public")
   archived   Boolean  @default(false)
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
   
-  @@map("files")
+  @@map("workspaces")
+  @@index([userId])
+  @@index([ideaId])
 }

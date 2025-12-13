@@ -99,6 +99,41 @@ export class WorkspacesService {
   }
 
   /**
+   * Get workspace by Idea ID
+   * Uses the integrated endpoint that returns both idea and workspace data
+   * This is the preferred method for the /workspace/idea/[ideaId] route pattern
+   */
+  static async getWorkspaceByIdeaId(ideaId: string): Promise<ApiResponse<{
+    idea: any;
+    workspace: Workspace;
+    workspaceId: string;
+  }>> {
+    try {
+      const response = await apiClient.get<{
+        data: {
+          idea: any;
+          workspace: any;
+          workspaceId: string;
+        };
+        success: boolean;
+      }>(`/ideas-workspace?ideaId=${ideaId}`);
+
+      return {
+        data: {
+          idea: response.data.idea,
+          workspace: transformWorkspace(response.data.workspace),
+          workspaceId: response.data.workspaceId,
+        },
+        message: 'Workspace retrieved successfully',
+        success: true,
+      };
+    } catch (error) {
+      console.error('Get workspace by idea ID error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Create a new workspace
    * NOTE: Workspaces are now created automatically with ideas
    * This method exists for backwards compatibility

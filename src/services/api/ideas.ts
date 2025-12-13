@@ -117,11 +117,14 @@ export class IdeasService {
 
   /**
    * Create a new idea
+   * Returns both the idea and the associated workspace ID
+   * The workspace is created atomically with the idea (1:1 relationship)
    */
-  static async createIdea(ideaData: Partial<Idea>): Promise<ApiResponse<Idea>> {
+  static async createIdea(ideaData: Partial<Idea>): Promise<ApiResponse<Idea & { workspaceId?: string }>> {
     try {
       const response = await apiClient.post<{
         data: any;
+        workspaceId?: string;
         success: boolean;
         message: string;
       }>('/ideas-create', {
@@ -140,7 +143,10 @@ export class IdeasService {
       const idea = transformApiIdea(response.data);
 
       return {
-        data: idea,
+        data: {
+          ...idea,
+          workspaceId: response.workspaceId || response.data?.workspace?.id,
+        },
         message: response.message || 'Idea created successfully',
         success: true,
       };

@@ -52,23 +52,25 @@ export const handler: Handler = async (event: HandlerEvent) => {
       status,
     } = JSON.parse(event.body || '{}');
 
-    // Validation
-    if (!title || !description || !content || !category) {
+    // Validation - title, description, category are required
+    // content can be empty for drafts
+    if (!title || !description || !category) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: 'Missing required fields: title, description, content, category' }),
+        body: JSON.stringify({ error: 'Missing required fields: title, description, category' }),
       };
     }
 
     // Create idea and workspace atomically using a transaction
-    // This ensures the constraint: one workspace per idea
+    // This ensures the constraint: one workspace per idea (1:1 relationship)
+    // CRITICAL: Both records must be created together - one cannot exist without the other
     const result = await prisma.$transaction(async (tx) => {
-      // Create the idea
+      // Step 1: Create the idea (metadata layer)
       const idea = await tx.idea.create({
         data: {
           title,
           description,
-          content,
+          content: content || '',
           canvasData: canvasData || null,
           authorId: payload.userId,
           tags: tags || [],
@@ -83,23 +85,29 @@ export const handler: Handler = async (event: HandlerEvent) => {
         },
       });
 
-      // Create the workspace with the same name as the idea
+      // Step 2: Create the workspace (file system layer) linked to the idea
+      // The workspace serves as the canvas/document storage for the idea
       const workspace = await tx.workspace.create({
         data: {
           name: title,
           ideaId: idea.id,
           userId: payload.userId,
-          content: canvasData ? JSON.parse(canvasData) : { elements: [], appState: {} },
+          // Initialize document and whiteboard with empty/default content
+          document: {}, // EditorJS empty state
+          whiteboard: { elements: [], appState: {} }, // Excalidraw empty state
           isPublic: visibility === 'PUBLIC',
+          archived: false,
         },
       });
 
       return { idea, workspace };
     });
 
-    // Transform user data
+    // Transform user data (remove sensitive fields)
     const { passwordHash: _, ...author } = result.idea.author;
 
+    // Return both idea and workspace data with the workspace ID
+    // Frontend can use workspaceId to construct route: /workspace/[workspaceId]
     return {
       statusCode: 201,
       headers: {
@@ -109,7 +117,13 @@ export const handler: Handler = async (event: HandlerEvent) => {
         data: {
           ...result.idea,
           author,
+          workspace: {
+            id: result.workspace.id,
+            name: result.workspace.name,
+            ideaId: result.workspace.ideaId,
+          },
         },
+        workspaceId: result.workspace.id,
         success: true,
         message: 'Idea and workspace created successfully',
       }),

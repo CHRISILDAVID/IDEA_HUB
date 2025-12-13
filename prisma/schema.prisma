@@ -40,6 +40,13 @@ enum NotificationType {
   ISSUE
 }
 
+enum ServiceStatus {
+  HEALTHY
+  UNHEALTHY
+  STARTING
+  STOPPING
+}
+
 // ============================================
 // MODELS
 // ============================================
@@ -224,6 +231,43 @@ model Notification {
   @@map("notifications")
   @@index([userId])
   @@index([isRead])
+}
+
+// ============================================
+// SERVICE REGISTRY
+// ============================================
+// Microservice discovery and management
+
+model Service {
+  id            String        @id @default(uuid())
+  name          String        @unique // e.g., "workspace", "main", "ai-service"
+  displayName   String        @map("display_name") // e.g., "Workspace Editor"
+  description   String?
+  
+  // URL Configuration
+  baseUrl       String        @map("base_url") // Current active URL
+  localUrl      String?       @map("local_url") // localhost URL for dev
+  devUrl        String?       @map("dev_url") // Codespaces/dev environment URL
+  prodUrl       String?       @map("prod_url") // Production URL
+  
+  // Service metadata
+  version       String        @default("1.0.0")
+  port          Int           // Default port number
+  healthPath    String        @default("/api/health") @map("health_path")
+  
+  // Status tracking
+  status        ServiceStatus @default(STARTING)
+  lastHeartbeat DateTime?     @map("last_heartbeat")
+  
+  // Environment detection
+  environment   String        @default("development") // development, staging, production
+  
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  
+  @@map("services")
+  @@index([name])
+  @@index([status])
 }
 
 // ============================================

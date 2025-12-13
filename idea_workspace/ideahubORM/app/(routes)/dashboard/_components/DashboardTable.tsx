@@ -73,7 +73,7 @@ const DashboardTable = () => {
                 className="mx-16 hover:bg-white/10 cursor-pointer border-neutral-700 hover:text-white"
               >
                 <TableCell className="font-medium pl-20">
-                  {file.fileName}
+                  {file.name || file.fileName}
                 </TableCell>
                 <TableCell className=""></TableCell>
                 <TableCell className="w-[150px] text-sm">

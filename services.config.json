@@ -1,0 +1,53 @@
+{
+  "$schema": "./services.schema.json",
+  "version": "1.0.0",
+  "description": "IdeaHub Platform Services Configuration",
+  "services": {
+    "main": {
+      "name": "main",
+      "displayName": "Main Application",
+      "description": "Core IdeaHub application - auth, ideas CRUD, social features",
+      "port": 8888,
+      "healthPath": "/api/health",
+      "routes": {
+        "api": "/.netlify/functions",
+        "auth": "/login",
+        "dashboard": "/dashboard",
+        "explore": "/explore"
+      },
+      "urls": {
+        "local": "http://localhost:8888",
+        "production": "https://ideahub.netlify.app"
+      }
+    },
+    "workspace": {
+      "name": "workspace",
+      "displayName": "Workspace Editor",
+      "description": "Canvas and document editor service - Excalidraw + Editor",
+      "port": 3000,
+      "healthPath": "/api/health",
+      "routes": {
+        "workspace": "/workspace/:id",
+        "api": "/api/workspace"
+      },
+      "urls": {
+        "local": "http://localhost:3000",
+        "production": "https://workspace.ideahub.com"
+      }
+    }
+  },
+  "environments": {
+    "local": {
+      "description": "Local development environment",
+      "urlPattern": "http://localhost:{port}"
+    },
+    "codespaces": {
+      "description": "GitHub Codespaces environment", 
+      "urlPattern": "https://{codespaceName}-{port}.{domain}"
+    },
+    "production": {
+      "description": "Production environment",
+      "urlPattern": "Custom URLs defined in service config"
+    }
+  }
+}

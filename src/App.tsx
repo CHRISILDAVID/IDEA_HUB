@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { store } from './store';
@@ -16,12 +16,17 @@ import { StarredPage } from './pages/StarredPage';
 import { ForksPage } from './pages/ForksPage';
 import { FollowingPage } from './pages/FollowingPage';
 import { NotificationsPage } from './pages/NotificationsPage';
-import { IdeaWorkspacePage } from './pages/IdeaWorkspacePage';
 import { WorkspacesListPage } from './pages/WorkspacesListPage';
 import { LoginForm } from './components/Auth/LoginForm';
 import { RegisterForm } from './components/Auth/RegisterForm';
 import { AuthCallback } from './pages/AuthCallback';
 import { AboutPage } from './pages/AboutPage';
+import { CreateIdeaRedirect } from './components/Ideas/CreateIdeaRedirect';
+import { EditIdeaRedirect } from './components/Ideas/EditIdeaRedirect';
+import { preloadServices } from './lib/service-registry';
+
+// Preload service registry on app initialization
+preloadServices().catch(console.warn);
 
 function App() {
   return (
@@ -40,20 +45,15 @@ function App() {
                   <Route path="/auth/callback" element={<AuthCallback />} />
                   <Route path="/about" element={<AboutPage />} />
                   
-                  {/* Universal Workspace Routes */}
-                  <Route path="/create" element={
-                    <ProtectedRoute>
-                      <IdeaWorkspacePage />
-                    </ProtectedRoute>
-                  } />
+                  {/* Idea Creation & Edit Routes - Redirect to Workspace Service */}
                   <Route path="/ideas/new" element={
                     <ProtectedRoute>
-                      <IdeaWorkspacePage />
+                      <CreateIdeaRedirect />
                     </ProtectedRoute>
                   } />
-                  <Route path="/ideas/:id" element={
+                  <Route path="/ideas/:ideaId/edit" element={
                     <ProtectedRoute>
-                      <IdeaWorkspacePage />
+                      <EditIdeaRedirect />
                     </ProtectedRoute>
                   } />
                   
